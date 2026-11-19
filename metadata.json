@@ -1,0 +1,5 @@
+{
+  "name": "CakeDay",
+  "description": "생일과 기념일을 미리 등록하고 원하는 커스텀 케이크를 사전 주문할 수 있도록 소비자와 전문점을 연결하는 플랫폼",
+  "requestFramePermissions": []
+}
