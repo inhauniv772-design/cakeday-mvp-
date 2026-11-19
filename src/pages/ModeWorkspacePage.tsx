@@ -3,15 +3,17 @@ import { ArrowLeft, ArrowLeftRight, Info, ShieldAlert } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { SafeImage } from '../components/SafeImage';
-import { CORE_VALUE_MEDIA, MODE_OVERVIEWS, ROLE_GUIDES } from '../data/cakedayData';
+import { MODE_OVERVIEWS, ROLE_GUIDES } from '../data/cakedayData';
 import type { AppPage, UserAccount, UserRole } from '../types';
 import { canSwitchModes, formatRolesSummary, hasRole } from '../utils/auth';
+import { ConsumerDashboardPage } from './ConsumerDashboardPage';
 
 interface ModeWorkspacePageProps {
   mode: UserRole;
   user: UserAccount;
   onNavigate: (page: AppPage) => void;
   onSwitchMode: (targetMode: UserRole) => boolean;
+  onLogout: () => void;
 }
 
 export const ModeWorkspacePage: React.FC<ModeWorkspacePageProps> = ({
@@ -19,6 +21,7 @@ export const ModeWorkspacePage: React.FC<ModeWorkspacePageProps> = ({
   user,
   onNavigate,
   onSwitchMode,
+  onLogout,
 }) => {
   const isAuthorized = hasRole(user, mode);
   const overview = MODE_OVERVIEWS[mode];
@@ -59,13 +62,21 @@ export const ModeWorkspacePage: React.FC<ModeWorkspacePageProps> = ({
     );
   }
 
-  const modeMedia =
-    mode === 'consumer'
-      ? CORE_VALUE_MEDIA
-      : {
-          src: ROLE_GUIDES[1].imageSrc,
-          alt: ROLE_GUIDES[1].imageAlt,
-        };
+  if (mode === 'consumer') {
+    return (
+      <ConsumerDashboardPage
+        user={user}
+        onNavigate={onNavigate}
+        onSwitchMode={onSwitchMode}
+        onLogout={onLogout}
+      />
+    );
+  }
+
+  const modeMedia = {
+    src: ROLE_GUIDES[1].imageSrc,
+    alt: ROLE_GUIDES[1].imageAlt,
+  };
 
   return (
     <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 md:py-14">

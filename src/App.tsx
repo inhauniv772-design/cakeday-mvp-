@@ -8,23 +8,79 @@ import { SignupPage } from './pages/SignupPage';
 import type { AppPage, UserAccount, UserRole } from './types';
 import { hasRole } from './utils/auth';
 
-function resolveInitialPage(): AppPage {
+const DEMO_USER_STORAGE_KEY = 'cakeday_demo_current_user';
+const DEMO_REGISTERED_STORAGE_KEY = 'cakeday_demo_registered_users';
+
+function readStoredUser(): UserAccount | null {
+  try {
+    const raw = window.sessionStorage.getItem(DEMO_USER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as UserAccount;
+    if (!parsed || !Array.isArray(parsed.roles)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function readStoredRegisteredUsers(): UserAccount[] {
+  try {
+    const raw = window.sessionStorage.getItem(DEMO_REGISTERED_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as UserAccount[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function resolveInitialPage(initialUser: UserAccount | null): AppPage {
   const hash = window.location.hash.replace('#/', '').trim();
   if (hash === 'login' || hash === 'signup') {
     return hash;
   }
   if (hash === 'mode-select' || hash === 'consumer' || hash === 'seller') {
-    return 'login';
+    return initialUser ? hash : 'login';
   }
   return 'home';
 }
 
 export const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<AppPage>(resolveInitialPage);
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
-  const [registeredUsers, setRegisteredUsers] = useState<UserAccount[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(readStoredUser);
+  const [registeredUsers, setRegisteredUsers] = useState<UserAccount[]>(
+    readStoredRegisteredUsers
+  );
+  const [currentPage, setCurrentPage] = useState<AppPage>(() =>
+    resolveInitialPage(readStoredUser())
+  );
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      if (currentUser) {
+        window.sessionStorage.setItem(
+          DEMO_USER_STORAGE_KEY,
+          JSON.stringify(currentUser)
+        );
+      } else {
+        window.sessionStorage.removeItem(DEMO_USER_STORAGE_KEY);
+      }
+    } catch {
+      // Ignore storage errors in restricted environments
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(
+        DEMO_REGISTERED_STORAGE_KEY,
+        JSON.stringify(registeredUsers)
+      );
+    } catch {
+      // Ignore storage errors in restricted environments
+    }
+  }, [registeredUsers]);
 
   const syncUrl = useCallback((page: AppPage) => {
     const nextHash = page === 'home' ? '' : `#/${page}`;
@@ -64,13 +120,22 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     const handleHashChange = () => {
-      const target = resolveInitialPage();
+      const target = resolveInitialPage(currentUser);
       const requiresAuth =
         target === 'mode-select' || target === 'consumer' || target === 'seller';
       if (requiresAuth && !currentUser) {
         setAuthNotice('로그인 후 이용할 수 있는 화면입니다.');
         setCurrentPage('login');
         return;
+      }
+      if (
+        (target === 'consumer' || target === 'seller') &&
+        currentUser &&
+        hasRole(currentUser, target)
+      ) {
+        setCurrentUser((prev) =>
+          prev ? { ...prev, currentMode: target } : null
+        );
       }
       setCurrentPage(target);
     };
@@ -178,6 +243,7 @@ export const App: React.FC = () => {
           user={currentUser}
           onNavigate={handleNavigate}
           onSwitchMode={handleSelectMode}
+          onLogout={handleLogout}
         />
       );
     }
