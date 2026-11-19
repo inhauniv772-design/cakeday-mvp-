@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage';
 import { ModeSelectPage } from './pages/ModeSelectPage';
 import { ModeWorkspacePage } from './pages/ModeWorkspacePage';
 import { SignupPage } from './pages/SignupPage';
+import { DEMO_ACCOUNT_PRESETS } from './data/cakedayData';
 import type { AppPage, UserAccount, UserRole } from './types';
 import { hasRole } from './utils/auth';
 
@@ -17,6 +18,17 @@ function readStoredUser(): UserAccount | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as UserAccount;
     if (!parsed || !Array.isArray(parsed.roles)) return null;
+    if (!parsed.ownedShopIds) {
+      const matchedPreset = DEMO_ACCOUNT_PRESETS.find(
+        (preset) => preset.userId === parsed.userId
+      );
+      if (matchedPreset?.ownedShopIds) {
+        return {
+          ...parsed,
+          ownedShopIds: [...matchedPreset.ownedShopIds],
+        };
+      }
+    }
     return parsed;
   } catch {
     return null;

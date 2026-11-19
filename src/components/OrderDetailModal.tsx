@@ -1,10 +1,14 @@
 import React, { useEffect } from 'react';
-import { X } from 'lucide-react';
+import { CheckCircle2, Clock3, X, XCircle } from 'lucide-react';
 import { Button } from './Button';
 import { SafeImage } from './SafeImage';
 import { formatPriceKRW } from '../data/mockShops';
-import { formatOrderTimestampDate } from '../services/orderStorage';
+import {
+  formatOrderTimestampDate,
+  getOrderStatusBadgeClass,
+} from '../services/orderStorage';
 import type { CakeOrder } from '../types';
+import { cn } from '../utils/cn';
 import { formatKoreanDate } from '../utils/dateUtils';
 
 interface OrderDetailModalProps {
@@ -47,15 +51,23 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
 
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-medium text-[#8F6849]">
-              {order.applicationStatus} · {order.status}
-            </p>
+            <span
+              className={cn(
+                'inline-block rounded-full px-3 py-1 text-xs font-semibold',
+                getOrderStatusBadgeClass(order.status)
+              )}
+            >
+              {order.status}
+            </span>
             <h2
               id="order-detail-modal-title"
-              className="mt-1 text-xl font-bold text-[#493B32]"
+              className="mt-2 text-xl font-bold text-[#493B32]"
             >
               주문 상세 내역
             </h2>
+            <p className="mt-0.5 text-xs text-[#6E5C50] tabular-nums">
+              주문 번호: {order.orderId}
+            </p>
           </div>
 
           <button
@@ -67,6 +79,62 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
+
+        {/* Status Feedback Banner */}
+        {order.status === '판매자 승인 완료' && (
+          <div className="flex items-start gap-2.5 rounded-2xl border border-[#BBD0B5] bg-[#EEF4EC] p-4 text-xs sm:text-sm text-[#355E3B]">
+            <CheckCircle2
+              className="h-4 w-4 mt-0.5 shrink-0"
+              aria-hidden="true"
+            />
+            <div className="space-y-1">
+              <p className="font-bold">판매자가 주문을 승인했습니다.</p>
+              <p className="leading-relaxed">
+                선택하신 픽업 일정({formatKoreanDate(order.pickupDate)} ·{' '}
+                {order.pickupTime})에 맞춰 케이크가 준비될 예정입니다.
+              </p>
+              {order.reviewedAt && (
+                <p className="text-xs opacity-90 tabular-nums">
+                  처리 일시: {formatOrderTimestampDate(order.reviewedAt)}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {order.status === '판매자 거절' && (
+          <div className="flex items-start gap-2.5 rounded-2xl border border-[#E4B8AF] bg-[#FBF0ED] p-4 text-xs sm:text-sm text-[#9F4A3B]">
+            <XCircle className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
+            <div className="space-y-1.5">
+              <p className="font-bold">판매자가 주문을 거절했습니다.</p>
+              <div className="rounded-xl bg-[#FFFFFF]/85 border border-[#E4B8AF]/80 px-3 py-2 text-[#493B32]">
+                <span className="text-xs font-semibold text-[#9F4A3B] block">
+                  거절 사유
+                </span>
+                <p className="mt-0.5 text-sm leading-relaxed">
+                  {order.rejectionReason || '등록된 거절 사유가 없습니다.'}
+                </p>
+              </div>
+              {order.reviewedAt && (
+                <p className="text-xs opacity-90 tabular-nums">
+                  처리 일시: {formatOrderTimestampDate(order.reviewedAt)}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {order.status === '판매자 확인 대기' && (
+          <div className="flex items-start gap-2.5 rounded-2xl border border-[#E9DFD0] bg-[#FAF8F3] p-3.5 text-xs sm:text-sm text-[#6E5C50]">
+            <Clock3
+              className="h-4 w-4 text-[#8F6849] mt-0.5 shrink-0"
+              aria-hidden="true"
+            />
+            <p className="leading-relaxed">
+              매장에서 주문 내용을 확인하고 있습니다. 승인 또는 거절 처리 시 이 화면에서 바로 확인할 수 있습니다.
+            </p>
+          </div>
+        )}
 
         <div className="flex items-center gap-3.5 rounded-2xl bg-[#FAF8F3] border border-[#E9DFD0] p-3.5">
           <SafeImage
@@ -102,10 +170,8 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
             </dd>
           </div>
           <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-[#E9DFD0]">
-            <dt className="text-[#6E5C50]">주문 상태</dt>
-            <dd className="font-semibold text-[#8F6849]">
-              {order.applicationStatus} ({order.status})
-            </dd>
+            <dt className="text-[#6E5C50]">현재 주문 상태</dt>
+            <dd className="font-semibold text-[#493B32]">{order.status}</dd>
           </div>
         </dl>
 

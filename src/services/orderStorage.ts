@@ -1,4 +1,10 @@
-import type { CakeOrder, CakeOrderOptions, CakeShop } from '../types';
+import type {
+  CakeOrder,
+  CakeOrderOptions,
+  CakeOrderStatus,
+  CakeShop,
+  SellerOrderFilter,
+} from '../types';
 
 const ORDERS_STORAGE_KEY = 'cakeday_orders_v1';
 
@@ -71,8 +77,43 @@ export function loadUserOrders(userId: string): CakeOrder[] {
     .sort((a, b) => b.orderedAt.localeCompare(a.orderedAt));
 }
 
+export function loadOrdersForSellerShops(ownedShopIds: string[]): CakeOrder[] {
+  if (!ownedShopIds || ownedShopIds.length === 0) return [];
+  const shopSet = new Set(ownedShopIds);
+  return readAllOrders()
+    .filter((order) => shopSet.has(order.shopId))
+    .sort((a, b) => b.orderedAt.localeCompare(a.orderedAt));
+}
+
+export function filterSellerOrders(
+  orders: CakeOrder[],
+  filter: SellerOrderFilter
+): CakeOrder[] {
+  if (filter === 'pending') {
+    return orders.filter((order) => order.status === '판매자 확인 대기');
+  }
+  if (filter === 'approved') {
+    return orders.filter((order) => order.status === '판매자 승인 완료');
+  }
+  if (filter === 'rejected') {
+    return orders.filter((order) => order.status === '판매자 거절');
+  }
+  return orders;
+}
+
+export function getSellerOrderCounts(orders: CakeOrder[]): Record<SellerOrderFilter, number> {
+  return {
+    all: orders.length,
+    pending: orders.filter((o) => o.status === '판매자 확인 대기').length,
+    approved: orders.filter((o) => o.status === '판매자 승인 완료').length,
+    rejected: orders.filter((o) => o.status === '판매자 거절').length,
+  };
+}
+
 export interface CreateOrderPayload {
   userId: string;
+  customerName: string;
+  customerEmail: string;
   shop: CakeShop;
   pickupDate: string;
   pickupTime: string;
@@ -86,6 +127,8 @@ export function createUserOrder(payload: CreateOrderPayload): {
   const newOrder: CakeOrder = {
     orderId: `order-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     userId: payload.userId,
+    customerName: payload.customerName,
+    customerEmail: payload.customerEmail,
     shopId: payload.shop.shopId,
     shopName: payload.shop.shopName,
     shopRegionText: `${payload.shop.region.sido} ${payload.shop.region.sigungu}`,
@@ -118,6 +161,140 @@ export function createUserOrder(payload: CreateOrderPayload): {
       .filter((order) => order.userId === payload.userId)
       .sort((a, b) => b.orderedAt.localeCompare(a.orderedAt)),
   };
+}
+
+export interface SellerOrderDecisionResult {
+  ok: boolean;
+  error?: string;
+  updatedOrder?: CakeOrder;
+  orders: CakeOrder[];
+}
+
+export function approveOrderAsSeller(
+  orderId: string,
+  ownedShopIds: string[]
+): SellerOrderDecisionResult {
+  const shopSet = new Set(ownedShopIds);
+  const all = readAllOrders();
+  const targetIndex = all.findIndex((order) => order.orderId === orderId);
+
+  if (targetIndex === -1) {
+    return {
+      ok: false,
+      error: '해당 주문을 찾을 수 없습니다.',
+      orders: loadOrdersForSellerShops(ownedShopIds),
+    };
+  }
+
+  const target = all[targetIndex];
+  if (!shopSet.has(target.shopId)) {
+    return {
+      ok: false,
+      error: '본인이 운영하는 매장의 주문만 승인할 수 있습니다.',
+      orders: loadOrdersForSellerShops(ownedShopIds),
+    };
+  }
+
+  if (target.status !== '판매자 확인 대기') {
+    return {
+      ok: false,
+      error: '이미 처리된 주문은 다시 승인하거나 거절할 수 없습니다.',
+      orders: loadOrdersForSellerShops(ownedShopIds),
+    };
+  }
+
+  const updatedOrder: CakeOrder = {
+    ...target,
+    status: '판매자 승인 완료',
+    reviewedAt: new Date().toISOString(),
+  };
+
+  const updatedAll = all.map((order, index) =>
+    index === targetIndex ? updatedOrder : order
+  );
+  writeAllOrders(updatedAll);
+
+  return {
+    ok: true,
+    updatedOrder,
+    orders: updatedAll
+      .filter((order) => shopSet.has(order.shopId))
+      .sort((a, b) => b.orderedAt.localeCompare(a.orderedAt)),
+  };
+}
+
+export function rejectOrderAsSeller(
+  orderId: string,
+  ownedShopIds: string[],
+  rejectionReason: string
+): SellerOrderDecisionResult {
+  const trimmedReason = rejectionReason.trim();
+  if (!trimmedReason) {
+    return {
+      ok: false,
+      error: '거절 사유를 입력해 주세요.',
+      orders: loadOrdersForSellerShops(ownedShopIds),
+    };
+  }
+
+  const shopSet = new Set(ownedShopIds);
+  const all = readAllOrders();
+  const targetIndex = all.findIndex((order) => order.orderId === orderId);
+
+  if (targetIndex === -1) {
+    return {
+      ok: false,
+      error: '해당 주문을 찾을 수 없습니다.',
+      orders: loadOrdersForSellerShops(ownedShopIds),
+    };
+  }
+
+  const target = all[targetIndex];
+  if (!shopSet.has(target.shopId)) {
+    return {
+      ok: false,
+      error: '본인이 운영하는 매장의 주문만 거절할 수 있습니다.',
+      orders: loadOrdersForSellerShops(ownedShopIds),
+    };
+  }
+
+  if (target.status !== '판매자 확인 대기') {
+    return {
+      ok: false,
+      error: '이미 처리된 주문은 다시 승인하거나 거절할 수 없습니다.',
+      orders: loadOrdersForSellerShops(ownedShopIds),
+    };
+  }
+
+  const updatedOrder: CakeOrder = {
+    ...target,
+    status: '판매자 거절',
+    rejectionReason: trimmedReason,
+    reviewedAt: new Date().toISOString(),
+  };
+
+  const updatedAll = all.map((order, index) =>
+    index === targetIndex ? updatedOrder : order
+  );
+  writeAllOrders(updatedAll);
+
+  return {
+    ok: true,
+    updatedOrder,
+    orders: updatedAll
+      .filter((order) => shopSet.has(order.shopId))
+      .sort((a, b) => b.orderedAt.localeCompare(a.orderedAt)),
+  };
+}
+
+export function getOrderStatusBadgeClass(status: CakeOrderStatus): string {
+  if (status === '판매자 승인 완료') {
+    return 'bg-[#EEF4EC] text-[#355E3B] border border-[#BBD0B5]';
+  }
+  if (status === '판매자 거절') {
+    return 'bg-[#FBF0ED] text-[#9F4A3B] border border-[#E4B8AF]';
+  }
+  return 'bg-[#E9DFD0] text-[#493B32] border border-[#D8C9B5]';
 }
 
 export function formatOrderTimestampDate(isoString: string): string {

@@ -98,9 +98,11 @@ export const DEMO_ACCOUNT_PRESETS: DemoAccountPreset[] = [
     email: 'dual@cakeday.demo',
     roles: ['consumer', 'seller'],
     currentMode: null,
+    ownedShopIds: ['mock-shop-001', 'mock-shop-003', 'mock-shop-004'],
     passwordHint: 'demo1234',
     roleLabel: '소비자 + 판매자 권한',
-    description: '하나의 계정으로 소비자 모드와 판매자 모드를 모두 전환할 수 있습니다.',
+    description:
+      '소비자 모드에서 주문한 뒤 판매자 모드(온기 케이크 아틀리에 외 2곳)에서 주문을 확인하고 승인·거절할 수 있습니다.',
   },
   {
     userId: 'demo-consumer-002',
@@ -118,9 +120,11 @@ export const DEMO_ACCOUNT_PRESETS: DemoAccountPreset[] = [
     email: 'seller@cakeday.demo',
     roles: ['seller'],
     currentMode: null,
+    ownedShopIds: ['mock-shop-001'],
     passwordHint: 'demo1234',
     roleLabel: '판매자 전용 권한',
-    description: '판매자 모드만 이용할 수 있으며 소비자 모드 접근이 제한됩니다.',
+    description:
+      '온기 케이크 아틀리에 매장의 주문 관리 화면을 이용할 수 있으며 소비자 모드 접근이 제한됩니다.',
   },
 ];
 
@@ -131,18 +135,18 @@ export const MODE_OVERVIEWS: Record<'consumer' | 'seller', ModeOverview> = {
     audienceLabel: '일반 소비자를 위한 서비스',
     description: '원하는 날짜에 맞춰 커스텀 케이크를 검색하고 주문할 수 있는 공간입니다.',
     workspaceNotice:
-      '기념일 등록, 케이크 검색 및 주문 기능은 다음 개발 단계에서 이 소비자 모드 화면에 연결될 예정입니다.',
+      '기념일 관리, 커스텀 케이크 매장 검색, 맞춤 주문 신청 및 진행 상태 확인을 이용할 수 있습니다.',
     entryButtonLabel: '소비자 모드 진입',
-    nextStepSummary: '기념일 관리 · 커스텀 케이크 검색 · 사전 주문 기능 준비 중',
+    nextStepSummary: '기념일 관리 · 케이크 검색 · 주문 신청 및 상태 확인',
   },
   seller: {
     mode: 'seller',
     title: '판매자 모드',
     audienceLabel: '커스텀 케이크 매장 운영자를 위한 서비스',
-    description: '매장에 접수된 주문을 확인하고 제작 일정을 관리할 수 있는 공간입니다.',
+    description: '운영 중인 매장에 접수된 주문을 확인하고 승인 또는 거절할 수 있는 공간입니다.',
     workspaceNotice:
-      '매장 등록, 주문 확인 및 일정 관리 기능은 다음 개발 단계에서 이 판매자 모드 화면에 연결될 예정입니다.',
+      '운영 매장에 접수된 주문의 세부 옵션을 검토하고 승인 완료 또는 거절 사유를 등록할 수 있습니다.',
     entryButtonLabel: '판매자 모드 진입',
-    nextStepSummary: '주문 확인 · 제작 일정 관리 · 공방 운영 기능 준비 중',
+    nextStepSummary: '접수 주문 조회 · 상세 옵션 확인 · 주문 승인 및 거절 관리',
   },
 };

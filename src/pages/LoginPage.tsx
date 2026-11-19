@@ -35,6 +35,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         email: preset.email,
         roles: [...preset.roles],
         currentMode: null,
+        ownedShopIds: preset.ownedShopIds ? [...preset.ownedShopIds] : undefined,
       },
       `${preset.name}님(${preset.roleLabel}) 데모 계정으로 로그인되었습니다. 이용할 모드를 선택해 주세요.`
     );

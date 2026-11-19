@@ -36,7 +36,12 @@ export interface CakeShop {
   isMockData: true;
 }
 
-export type CakeOrderStatus = '판매자 확인 대기';
+export type CakeOrderStatus =
+  | '판매자 확인 대기'
+  | '판매자 승인 완료'
+  | '판매자 거절';
+
+export type SellerOrderFilter = 'all' | 'pending' | 'approved' | 'rejected';
 
 export interface CakeOrderOptions {
   cakeSize: string;
@@ -64,6 +69,8 @@ export interface CakeOrderFormInput {
 export interface CakeOrder {
   orderId: string;
   userId: string;
+  customerName?: string;
+  customerEmail?: string;
   shopId: string;
   shopName: string;
   shopRegionText: string;
@@ -75,6 +82,8 @@ export interface CakeOrder {
   options: CakeOrderOptions;
   applicationStatus: '주문 신청 완료';
   status: CakeOrderStatus;
+  rejectionReason?: string;
+  reviewedAt?: string;
   orderedAt: string;
 }
 
@@ -120,6 +129,7 @@ export interface UserAccount {
   email: string;
   roles: UserRole[];
   currentMode: UserRole | null;
+  ownedShopIds?: string[];
 }
 
 export interface DemoAccountPreset extends UserAccount {

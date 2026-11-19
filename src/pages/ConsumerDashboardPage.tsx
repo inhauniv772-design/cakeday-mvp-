@@ -97,6 +97,9 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
       setSelectedShopId(null);
       setIsOrdering(false);
     }
+    if (tab === 'mypage') {
+      setOrders(loadUserOrders(user.userId));
+    }
     setActiveTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -165,6 +168,8 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
   }): CakeOrder => {
     const { createdOrder, orders: updatedOrders } = createUserOrder({
       userId: user.userId,
+      customerName: user.name,
+      customerEmail: user.email,
       shop: payload.shop,
       pickupDate: payload.pickupDate,
       pickupTime: payload.pickupTime,

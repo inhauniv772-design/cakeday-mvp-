@@ -3,9 +3,13 @@ import { ArrowLeftRight, ChevronRight, LogOut, Search, ShoppingBag } from 'lucid
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { OrderDetailModal } from '../components/OrderDetailModal';
-import { formatOrderTimestampDate } from '../services/orderStorage';
+import {
+  formatOrderTimestampDate,
+  getOrderStatusBadgeClass,
+} from '../services/orderStorage';
 import type { AppPage, CakeOrder, UserAccount, UserRole } from '../types';
 import { canSwitchModes, formatRolesSummary } from '../utils/auth';
+import { cn } from '../utils/cn';
 import { formatKoreanShortDate } from '../utils/dateUtils';
 
 interface ConsumerMyPageViewProps {
@@ -28,7 +32,9 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
   onLogout,
 }) => {
   const isDualRole = canSwitchModes(user);
-  const [selectedOrder, setSelectedOrder] = useState<CakeOrder | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const selectedOrder =
+    orders.find((order) => order.orderId === selectedOrderId) ?? null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -128,13 +134,18 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
               <button
                 key={order.orderId}
                 type="button"
-                onClick={() => setSelectedOrder(order)}
+                onClick={() => setSelectedOrderId(order.orderId)}
                 className="w-full p-5 sm:p-6 text-left flex items-center justify-between gap-4 hover:bg-[#FAF8F3] transition-colors cursor-pointer"
               >
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-block rounded-full bg-[#E9DFD0] px-2.5 py-0.5 text-xs font-semibold text-[#493B32]">
-                      {order.applicationStatus} · {order.status}
+                    <span
+                      className={cn(
+                        'inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                        getOrderStatusBadgeClass(order.status)
+                      )}
+                    >
+                      {order.status}
                     </span>
                     <span className="text-xs text-[#6E5C50] tabular-nums">
                       신청일 {formatOrderTimestampDate(order.orderedAt)}
@@ -156,6 +167,12 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
                     픽업 일정: {formatKoreanShortDate(order.pickupDate)} ·{' '}
                     {order.pickupTime}
                   </p>
+
+                  {order.status === '판매자 거절' && order.rejectionReason && (
+                    <p className="text-xs text-[#9F4A3B] bg-[#FBF0ED] border border-[#E4B8AF] rounded-xl px-3 py-1.5 leading-relaxed">
+                      거절 사유: {order.rejectionReason}
+                    </p>
+                  )}
                 </div>
 
                 <ChevronRight
@@ -170,7 +187,7 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
 
       <OrderDetailModal
         order={selectedOrder}
-        onClose={() => setSelectedOrder(null)}
+        onClose={() => setSelectedOrderId(null)}
       />
     </div>
   );
