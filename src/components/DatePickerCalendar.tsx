@@ -14,6 +14,7 @@ import {
 interface DatePickerCalendarProps {
   value: string;
   onChange: (nextDate: string) => void;
+  minDate?: string;
 }
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -21,6 +22,7 @@ const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 export const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({
   value,
   onChange,
+  minDate,
 }) => {
   const todayParts = useMemo(() => getTodayDateParts(), []);
   const todayStr = useMemo(() => getTodayString(), []);
@@ -163,22 +165,33 @@ export const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({
           });
           const isSelected = value === cellDate;
           const isToday = todayStr === cellDate;
+          const isDisabled = Boolean(minDate && cellDate < minDate);
 
           return (
             <button
               key={cellDate}
               type="button"
-              onClick={() => onChange(cellDate)}
+              disabled={isDisabled}
+              onClick={() => {
+                if (!isDisabled) onChange(cellDate);
+              }}
               className={cn(
-                'h-10 w-full rounded-xl text-sm font-medium tabular-nums transition-colors cursor-pointer flex items-center justify-center',
-                isSelected
-                  ? 'bg-[#8F6849] text-[#FFFFFF] font-semibold'
-                  : isToday
-                    ? 'bg-[#E9DFD0] text-[#493B32] font-semibold'
-                    : 'text-[#493B32] hover:bg-[#E9DFD0]/60'
+                'h-10 w-full rounded-xl text-sm font-medium tabular-nums transition-colors flex items-center justify-center',
+                isDisabled
+                  ? 'text-[#6E5C50]/35 cursor-not-allowed'
+                  : isSelected
+                    ? 'bg-[#8F6849] text-[#FFFFFF] font-semibold cursor-pointer'
+                    : isToday
+                      ? 'bg-[#E9DFD0] text-[#493B32] font-semibold cursor-pointer'
+                      : 'text-[#493B32] hover:bg-[#E9DFD0]/60 cursor-pointer'
               )}
               aria-pressed={isSelected}
-              aria-label={formatKoreanDate(cellDate)}
+              aria-disabled={isDisabled}
+              aria-label={
+                isDisabled
+                  ? `${formatKoreanDate(cellDate)} (선택 불가)`
+                  : formatKoreanDate(cellDate)
+              }
             >
               {day}
             </button>

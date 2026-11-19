@@ -10,7 +10,31 @@ export type UserRole = 'consumer' | 'seller';
 
 export type RoleFilter = 'all' | UserRole;
 
-export type ConsumerTab = 'home' | 'calendar' | 'mypage';
+export type ConsumerTab = 'home' | 'calendar' | 'search' | 'mypage';
+
+export type ShopOrderFilter = 'all' | 'sameDay' | 'reservation';
+
+export interface ShopRegion {
+  sido: string;
+  sigungu: string;
+}
+
+export interface CakeShop {
+  shopId: string;
+  shopName: string;
+  region: ShopRegion;
+  address: string;
+  introduction: string;
+  representativeImage: string;
+  representativeCakeName: string;
+  representativeCakePrice: number;
+  representativeCakeDescription: string;
+  sameDayAvailable: boolean;
+  pickupAvailableDates: string[];
+  operatingHours: string;
+  contactInformation: string;
+  isMockData: true;
+}
 
 export type AnniversaryCategory =
   | 'birthday'

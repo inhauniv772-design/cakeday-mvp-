@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { CalendarDays, Home, User } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { CalendarDays, Home, Search, User } from 'lucide-react';
 import { AnniversaryModal } from '../components/AnniversaryModal';
+import { getMockCakeShops } from '../data/mockShops';
 import {
   createUserAnniversary,
   deleteUserAnniversary,
@@ -13,14 +14,17 @@ import type {
   AnniversaryFormInput,
   AppPage,
   ConsumerTab,
+  ShopOrderFilter,
   UserAccount,
   UserRole,
 } from '../types';
 import { cn } from '../utils/cn';
 import { getTodayString } from '../utils/dateUtils';
+import { ConsumerCakeSearchView } from './ConsumerCakeSearchView';
 import { ConsumerCalendarView } from './ConsumerCalendarView';
 import { ConsumerHomeView } from './ConsumerHomeView';
 import { ConsumerMyPageView } from './ConsumerMyPageView';
+import { ShopDetailView } from './ShopDetailView';
 
 interface ConsumerDashboardPageProps {
   user: UserAccount;
@@ -36,6 +40,7 @@ const CONSUMER_TABS: Array<{
 }> = [
   { id: 'home', label: '홈', Icon: Home },
   { id: 'calendar', label: '캘린더', Icon: CalendarDays },
+  { id: 'search', label: '케이크 찾기', Icon: Search },
   { id: 'mypage', label: '마이페이지', Icon: User },
 ];
 
@@ -56,11 +61,32 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
     getTodayString()
   );
 
+  // Shop search & detail state (preserved across detail <-> search navigation)
+  const mockShops = useMemo(() => getMockCakeShops(), []);
+  const [pickupDate, setPickupDate] = useState<string>(() => getTodayString());
+  const [selectedSido, setSelectedSido] = useState<string>('all');
+  const [selectedSigungu, setSelectedSigungu] = useState<string>('all');
+  const [orderFilter, setOrderFilter] = useState<ShopOrderFilter>('all');
+  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+
+  const selectedShop = useMemo(
+    () => mockShops.find((shop) => shop.shopId === selectedShopId) ?? null,
+    [mockShops, selectedShopId]
+  );
+
   useEffect(() => {
     setAnniversaries(loadUserAnniversaries(user.userId));
     setIsModalOpen(false);
     setEditingAnniversary(null);
   }, [user.userId]);
+
+  const handleTabSelect = (tab: ConsumerTab) => {
+    if (tab === 'search' && activeTab === 'search') {
+      setSelectedShopId(null);
+    }
+    setActiveTab(tab);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleOpenCreate = (date?: string) => {
     setEditingAnniversary(null);
@@ -106,6 +132,18 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
     );
   };
 
+  const handleChangeSido = (nextSido: string) => {
+    setSelectedSido(nextSido);
+    setSelectedSigungu('all');
+  };
+
+  const handleResetSearchFilters = () => {
+    setPickupDate(getTodayString());
+    setSelectedSido('all');
+    setSelectedSigungu('all');
+    setOrderFilter('all');
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-6 pb-24 md:py-10">
       {/* Desktop & Tablet Sub-Navigation */}
@@ -123,7 +161,7 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
                 type="button"
                 role="tab"
                 aria-selected={isActive}
-                onClick={() => setActiveTab(id)}
+                onClick={() => handleTabSelect(id)}
                 className={cn(
                   'min-h-[44px] px-5 py-2 rounded-xl text-sm font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-2 transition-all duration-150 cursor-pointer',
                   isActive
@@ -154,7 +192,7 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
           anniversaries={anniversaries}
           onOpenCreate={() => handleOpenCreate()}
           onOpenDetail={handleOpenDetail}
-          onOpenCalendar={() => setActiveTab('calendar')}
+          onOpenCalendar={() => handleTabSelect('calendar')}
           onToggleAcknowledge={handleToggleAcknowledge}
         />
       )}
@@ -167,6 +205,35 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
         />
       )}
 
+      {activeTab === 'search' &&
+        (selectedShop ? (
+          <ShopDetailView
+            shop={selectedShop}
+            pickupDate={pickupDate}
+            onBackToSearch={() => {
+              setSelectedShopId(null);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        ) : (
+          <ConsumerCakeSearchView
+            shops={mockShops}
+            pickupDate={pickupDate}
+            selectedSido={selectedSido}
+            selectedSigungu={selectedSigungu}
+            orderFilter={orderFilter}
+            onChangePickupDate={setPickupDate}
+            onChangeSido={handleChangeSido}
+            onChangeSigungu={setSelectedSigungu}
+            onChangeOrderFilter={setOrderFilter}
+            onResetFilters={handleResetSearchFilters}
+            onSelectShop={(shopId) => {
+              setSelectedShopId(shopId);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        ))}
+
       {activeTab === 'mypage' && (
         <ConsumerMyPageView
           user={user}
@@ -177,29 +244,29 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
         />
       )}
 
-      {/* Mobile Fixed Bottom Navigation (홈 / 캘린더 / 마이페이지) */}
+      {/* Mobile Fixed Bottom Navigation (홈 / 캘린더 / 케이크 찾기 / 마이페이지) */}
       <nav
         aria-label="소비자 하단 메뉴"
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 h-14 bg-[#FFFFFF]/95 backdrop-blur-md border-t border-[#E9DFD0]"
       >
-        <div className="grid grid-cols-3 h-full max-w-md mx-auto">
+        <div className="grid grid-cols-4 h-full max-w-md mx-auto">
           {CONSUMER_TABS.map(({ id, label, Icon }) => {
             const isActive = activeTab === id;
             return (
               <button
                 key={id}
                 type="button"
-                onClick={() => setActiveTab(id)}
+                onClick={() => handleTabSelect(id)}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'min-h-[44px] flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer',
+                  'min-h-[44px] flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer px-1',
                   isActive ? 'text-[#8F6849]' : 'text-[#6E5C50]'
                 )}
               >
                 <Icon className="h-5 w-5" aria-hidden="true" />
                 <span
                   className={cn(
-                    'text-[11px] tracking-tight',
+                    'text-[11px] tracking-tight whitespace-nowrap',
                     isActive ? 'font-bold' : 'font-medium'
                   )}
                 >
