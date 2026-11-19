@@ -1,7 +1,13 @@
 import heroCustomCakeImg from '../assets/images/hero_custom_cake_1795099685809.jpg';
 import bakeryAtelierImg from '../assets/images/bakery_atelier_counter_1795099685983.jpg';
 import giftCakePackagingImg from '../assets/images/gift_cake_packaging_1795099687517.jpg';
-import type { BrandContent, RoleGuide, ServiceHighlight } from '../types';
+import type {
+  BrandContent,
+  DemoAccountPreset,
+  ModeOverview,
+  RoleGuide,
+  ServiceHighlight,
+} from '../types';
 
 export const HERO_MEDIA = {
   src: heroCustomCakeImg,
@@ -22,9 +28,9 @@ export const BRAND_CONTENT: BrandContent = {
   coreMessageTitle: '기념일을 기억하는 가장 여유로운 방법',
   coreMessageBody:
     '마음이 담긴 케이크는 하루아침에 완성되지 않습니다. 소중한 날짜를 먼저 떠올리고 여유 있게 준비할 때, 받는 사람도 만드는 공방도 가장 기분 좋은 하루를 맞이할 수 있습니다.',
-  authNoticeTitle: '계정 기능 연동 안내',
+  authNoticeTitle: '데모 환경 안내',
   authNoticeBody:
-    '현재는 초기 MVP 화면 구성 단계입니다. 추후 백엔드 연동 시 실제 로그인 및 회원가입 인증이 연결됩니다.',
+    '현재는 실제 인증 서버나 데이터베이스가 연결되지 않은 데모 단계입니다. 아래 데모 계정 또는 회원가입 시연으로 권한별 모드 전환을 확인할 수 있습니다.',
   copyright: '© 2026 CakeDay. All rights reserved.',
 };
 
@@ -64,7 +70,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
       '다양한 커스텀 케이크 전문점 스타일 살펴보기',
       '마감 임박 걱정 없이 여유로운 기념일 준비',
     ],
-    ctaLabel: '소비자로 시작하기',
+    ctaLabel: '소비자 이용 안내 · 로그인',
     imageSrc: giftCakePackagingImg,
     imageAlt: '기념일 선물용으로 포장된 케이크 상자',
   },
@@ -79,8 +85,64 @@ export const ROLE_GUIDES: RoleGuide[] = [
       '사전 예약 중심의 안정적인 제작 일정 운영',
       '특별한 날을 찾는 고객과의 신뢰 기반 연결',
     ],
-    ctaLabel: '판매자로 시작하기',
+    ctaLabel: '판매자 이용 안내 · 로그인',
     imageSrc: bakeryAtelierImg,
     imageAlt: '햇살이 드는 따뜻한 분위기의 커스텀 케이크 공방 카운터',
   },
 ];
+
+export const DEMO_ACCOUNT_PRESETS: DemoAccountPreset[] = [
+  {
+    userId: 'demo-dual-001',
+    name: '김다온',
+    email: 'dual@cakeday.demo',
+    roles: ['consumer', 'seller'],
+    currentMode: null,
+    passwordHint: 'demo1234',
+    roleLabel: '소비자 + 판매자 권한',
+    description: '하나의 계정으로 소비자 모드와 판매자 모드를 모두 전환할 수 있습니다.',
+  },
+  {
+    userId: 'demo-consumer-002',
+    name: '이서연',
+    email: 'consumer@cakeday.demo',
+    roles: ['consumer'],
+    currentMode: null,
+    passwordHint: 'demo1234',
+    roleLabel: '소비자 전용 권한',
+    description: '소비자 모드만 이용할 수 있으며 판매자 모드 접근이 제한됩니다.',
+  },
+  {
+    userId: 'demo-seller-003',
+    name: '온기아틀리에',
+    email: 'seller@cakeday.demo',
+    roles: ['seller'],
+    currentMode: null,
+    passwordHint: 'demo1234',
+    roleLabel: '판매자 전용 권한',
+    description: '판매자 모드만 이용할 수 있으며 소비자 모드 접근이 제한됩니다.',
+  },
+];
+
+export const MODE_OVERVIEWS: Record<'consumer' | 'seller', ModeOverview> = {
+  consumer: {
+    mode: 'consumer',
+    title: '소비자 모드',
+    audienceLabel: '일반 소비자를 위한 서비스',
+    description: '원하는 날짜에 맞춰 커스텀 케이크를 검색하고 주문할 수 있는 공간입니다.',
+    workspaceNotice:
+      '기념일 등록, 케이크 검색 및 주문 기능은 다음 개발 단계에서 이 소비자 모드 화면에 연결될 예정입니다.',
+    entryButtonLabel: '소비자 모드 진입',
+    nextStepSummary: '기념일 관리 · 커스텀 케이크 검색 · 사전 주문 기능 준비 중',
+  },
+  seller: {
+    mode: 'seller',
+    title: '판매자 모드',
+    audienceLabel: '커스텀 케이크 매장 운영자를 위한 서비스',
+    description: '매장에 접수된 주문을 확인하고 제작 일정을 관리할 수 있는 공간입니다.',
+    workspaceNotice:
+      '매장 등록, 주문 확인 및 일정 관리 기능은 다음 개발 단계에서 이 판매자 모드 화면에 연결될 예정입니다.',
+    entryButtonLabel: '판매자 모드 진입',
+    nextStepSummary: '주문 확인 · 제작 일정 관리 · 공방 운영 기능 준비 중',
+  },
+};

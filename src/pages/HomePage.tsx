@@ -10,11 +10,12 @@ import {
   ROLE_GUIDES,
   SERVICE_HIGHLIGHTS,
 } from '../data/cakedayData';
-import type { AppPage, RoleFilter, UserRole } from '../types';
+import type { AppPage, RoleFilter, UserAccount } from '../types';
 import { cn } from '../utils/cn';
 
 interface HomePageProps {
-  onNavigate: (page: AppPage, presetRole?: UserRole) => void;
+  currentUser: UserAccount | null;
+  onNavigate: (page: AppPage) => void;
 }
 
 const ROLE_FILTER_TABS: Array<{ id: RoleFilter; label: string }> = [
@@ -23,7 +24,7 @@ const ROLE_FILTER_TABS: Array<{ id: RoleFilter; label: string }> = [
   { id: 'seller', label: '판매자' },
 ];
 
-export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
+export const HomePage: React.FC<HomePageProps> = ({ currentUser, onNavigate }) => {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
 
   const visibleRoleGuides =
@@ -50,21 +51,47 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             </p>
 
             <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:items-center">
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={() => onNavigate('signup')}
-              >
-                회원가입
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => onNavigate('login')}
-              >
-                로그인
-              </Button>
+              {currentUser ? (
+                <>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={() => onNavigate('mode-select')}
+                  >
+                    모드 선택 화면으로 이동
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  {currentUser.currentMode && (
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      onClick={() => onNavigate(currentUser.currentMode!)}
+                    >
+                      {currentUser.currentMode === 'consumer'
+                        ? '소비자 모드 바로가기'
+                        : '판매자 모드 바로가기'}
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={() => onNavigate('signup')}
+                  >
+                    회원가입
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => onNavigate('login')}
+                  >
+                    로그인
+                  </Button>
+                </>
+              )}
             </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-[#6E5C50]">
@@ -72,7 +99,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               <span aria-hidden="true">·</span>
               <span>커스텀 케이크 전문점 연결</span>
               <span aria-hidden="true">·</span>
-              <span>기념일 일정 관리 기반</span>
+              <span>계정별 권한 모드 지원</span>
             </div>
           </div>
 
@@ -150,7 +177,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                 소비자와 판매자 모두를 위한 플랫폼
               </h2>
               <p className="mt-3 text-base text-[#6E5C50] max-w-2xl">
-                특별한 날을 준비하는 고객과 정성껏 케이크를 만드는 전문점 모두가 편리하게 이용할 수 있습니다.
+                하나의 계정으로 부여된 권한에 따라 소비자 모드와 판매자 모드를 이용할 수 있습니다.
               </p>
             </div>
 
@@ -232,9 +259,11 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                       variant="secondary"
                       fullWidth
                       size="lg"
-                      onClick={() => onNavigate('signup', guide.role)}
+                      onClick={() =>
+                        onNavigate(currentUser ? 'mode-select' : 'login')
+                      }
                     >
-                      {guide.ctaLabel}
+                      {currentUser ? '모드 선택 화면에서 확인하기' : guide.ctaLabel}
                       <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </Button>
                   </div>
@@ -259,26 +288,39 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               기억하고 싶은 날, 지금부터 여유롭게 준비하세요
             </h2>
             <p className="mt-3 mx-auto max-w-xl text-sm sm:text-base text-[#6E5C50] leading-relaxed">
-              소비자 또는 커스텀 케이크 판매자로 가입 화면을 살펴보거나, 로그인 화면으로 이동할 수 있습니다.
+              로그인 화면에서 시연용 데모 계정으로 소비자 전용, 판매자 전용, 통합 권한 계정의 모드 전환을 바로 확인하실 수 있습니다.
             </p>
 
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Button
-                variant="primary"
-                size="lg"
-                className="w-full sm:w-auto min-w-[160px]"
-                onClick={() => onNavigate('signup')}
-              >
-                회원가입
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full sm:w-auto min-w-[160px]"
-                onClick={() => onNavigate('login')}
-              >
-                로그인
-              </Button>
+              {currentUser ? (
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full sm:w-auto min-w-[200px]"
+                  onClick={() => onNavigate('mode-select')}
+                >
+                  모드 선택 화면으로 이동
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    className="w-full sm:w-auto min-w-[160px]"
+                    onClick={() => onNavigate('signup')}
+                  >
+                    회원가입
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full sm:w-auto min-w-[160px]"
+                    onClick={() => onNavigate('login')}
+                  >
+                    로그인
+                  </Button>
+                </>
+              )}
             </div>
           </Card>
         </div>

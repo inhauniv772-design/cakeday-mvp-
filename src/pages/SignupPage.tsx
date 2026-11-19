@@ -3,51 +3,67 @@ import { ArrowLeft, Info } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { TextInput } from '../components/TextInput';
-import { BRAND_CONTENT } from '../data/cakedayData';
-import type { AppPage, AuthFormState, AuthSubmissionPreview, UserRole } from '../types';
-import { cn } from '../utils/cn';
-import { validateAuthForm, type ValidationErrors } from '../utils/validation';
+import { BRAND_CONTENT, DEMO_ACCOUNT_PRESETS } from '../data/cakedayData';
+import type { AppPage, SignupFormState, UserAccount } from '../types';
+import { validateSignupForm, type SignupValidationErrors } from '../utils/validation';
 
 interface SignupPageProps {
-  initialRole?: UserRole;
-  onNavigate: (page: AppPage, presetRole?: UserRole) => void;
+  registeredUsers: UserAccount[];
+  onNavigate: (page: AppPage) => void;
+  onSignupComplete: (newUser: UserAccount, notice: string) => void;
 }
 
 export const SignupPage: React.FC<SignupPageProps> = ({
-  initialRole = 'consumer',
+  registeredUsers,
   onNavigate,
+  onSignupComplete,
 }) => {
-  const [form, setForm] = useState<AuthFormState>({
-    role: initialRole,
+  const [form, setForm] = useState<SignupFormState>({
     name: '',
     email: '',
     password: '',
-    shopName: '',
+    confirmPassword: '',
   });
-  const [errors, setErrors] = useState<ValidationErrors>({});
-  const [preview, setPreview] = useState<AuthSubmissionPreview | null>(null);
+  const [errors, setErrors] = useState<SignupValidationErrors>({});
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const validationErrors = validateAuthForm('signup', form);
-    setErrors(validationErrors);
+    const validationErrors = validateSignupForm(form);
 
+    const normalizedEmail = form.email.trim().toLowerCase();
+    const isDuplicate =
+      DEMO_ACCOUNT_PRESETS.some(
+        (preset) => preset.email.toLowerCase() === normalizedEmail
+      ) ||
+      registeredUsers.some(
+        (user) => user.email.toLowerCase() === normalizedEmail
+      );
+
+    if (!validationErrors.email && isDuplicate) {
+      validationErrors.email = '이미 사용 중인 이메일입니다. 다른 이메일을 입력해 주세요.';
+    }
+
+    setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) {
-      setPreview(null);
       return;
     }
 
-    const roleLabel = form.role === 'consumer' ? '소비자' : '판매자';
-    setPreview({
-      mode: 'signup',
-      role: form.role,
+    const createdDemoUser: UserAccount = {
+      userId: `demo-user-${Date.now()}`,
+      name: form.name.trim(),
       email: form.email.trim(),
-      message: `${roleLabel} 회원가입 입력이 확인되었습니다. 실제 계정 생성 및 저장 기능은 추후 데이터베이스 연동 단계에서 연결될 예정입니다.`,
-    });
+      roles: ['consumer'],
+      currentMode: null,
+    };
+
+    onSignupComplete(
+      createdDemoUser,
+      `${createdDemoUser.name}님의 데모 계정이 생성되었습니다. 신규 가입 계정은 기본 '소비자' 권한으로 시작되며, 실제 인증 서버는 연결되지 않았습니다.`
+    );
   };
 
   return (
-    <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10 md:py-16">
+    <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 md:py-14">
       <div className="mx-auto max-w-md">
         <button
           type="button"
@@ -64,48 +80,16 @@ export const SignupPage: React.FC<SignupPageProps> = ({
           </p>
           <h1 className="mt-2 text-2xl font-bold text-[#493B32]">회원가입</h1>
           <p className="mt-2 text-sm text-[#6E5C50]">
-            소비자와 커스텀 케이크 판매자 중 가입 유형을 선택해 주세요.
+            기본 정보를 입력해 CakeDay 데모 회원가입을 진행해 보세요.
           </p>
-
-          {/* Role Toggle */}
-          <div
-            role="group"
-            aria-label="가입 유형 선택"
-            className="mt-6 grid grid-cols-2 gap-1.5 rounded-2xl bg-[#E9DFD0]/70 p-1"
-          >
-            {(['consumer', 'seller'] as UserRole[]).map((roleOption) => {
-              const isSelected = form.role === roleOption;
-              return (
-                <button
-                  key={roleOption}
-                  type="button"
-                  onClick={() => {
-                    setForm((prev) => ({ ...prev, role: roleOption }));
-                    setErrors({});
-                    setPreview(null);
-                  }}
-                  className={cn(
-                    'min-h-[44px] rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer',
-                    isSelected
-                      ? 'bg-[#FFFFFF] text-[#493B32] shadow-sm shadow-[#493B32]/5'
-                      : 'text-[#6E5C50] hover:text-[#493B32]'
-                  )}
-                >
-                  {roleOption === 'consumer' ? '소비자 가입' : '판매자 가입'}
-                </button>
-              );
-            })}
-          </div>
 
           <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-4">
             <TextInput
               id="signup-name"
-              label={form.role === 'consumer' ? '이름 (닉네임)' : '대표자명'}
+              label="이름"
               type="text"
               autoComplete="name"
-              placeholder={
-                form.role === 'consumer' ? '홍길동' : '담당자 성함을 입력해 주세요'
-              }
+              placeholder="이름을 입력해 주세요"
               value={form.name}
               onChange={(e) => {
                 setForm((prev) => ({ ...prev, name: e.target.value }));
@@ -113,23 +97,6 @@ export const SignupPage: React.FC<SignupPageProps> = ({
               }}
               error={errors.name}
             />
-
-            {form.role === 'seller' && (
-              <TextInput
-                id="signup-shop-name"
-                label="공방 / 매장명"
-                type="text"
-                placeholder="예: 온기 케이크 아틀리에"
-                value={form.shopName}
-                onChange={(e) => {
-                  setForm((prev) => ({ ...prev, shopName: e.target.value }));
-                  if (errors.shopName) {
-                    setErrors((prev) => ({ ...prev, shopName: undefined }));
-                  }
-                }}
-                error={errors.shopName}
-              />
-            )}
 
             <TextInput
               id="signup-email"
@@ -159,6 +126,22 @@ export const SignupPage: React.FC<SignupPageProps> = ({
               error={errors.password}
             />
 
+            <TextInput
+              id="signup-confirm-password"
+              label="비밀번호 확인"
+              type="password"
+              autoComplete="new-password"
+              placeholder="비밀번호를 한 번 더 입력해 주세요"
+              value={form.confirmPassword}
+              onChange={(e) => {
+                setForm((prev) => ({ ...prev, confirmPassword: e.target.value }));
+                if (errors.confirmPassword) {
+                  setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+                }
+              }}
+              error={errors.confirmPassword}
+            />
+
             <div className="pt-2">
               <Button type="submit" variant="primary" size="lg" fullWidth>
                 회원가입
@@ -166,31 +149,18 @@ export const SignupPage: React.FC<SignupPageProps> = ({
             </div>
           </form>
 
-          {preview ? (
-            <div
-              role="status"
-              className="mt-5 rounded-2xl border border-[#B58C6A]/45 bg-[#FAF8F3] p-4 text-sm text-[#493B32]"
-            >
-              <p className="font-semibold text-[#8F6849]">MVP 화면 안내</p>
-              <p className="mt-1 leading-relaxed text-[#6E5C50]">{preview.message}</p>
-            </div>
-          ) : (
-            <div className="mt-5 flex items-start gap-2.5 rounded-2xl bg-[#FAF8F3] p-4 text-xs text-[#6E5C50]">
-              <Info className="h-4 w-4 text-[#B58C6A] mt-0.5 shrink-0" aria-hidden="true" />
-              <p className="leading-relaxed">
-                <strong className="font-semibold text-[#493B32]">
-                  {BRAND_CONTENT.authNoticeTitle}:{' '}
-                </strong>
-                {BRAND_CONTENT.authNoticeBody}
-              </p>
-            </div>
-          )}
+          <div className="mt-5 flex items-start gap-2.5 rounded-2xl bg-[#FAF8F3] p-4 text-xs text-[#6E5C50]">
+            <Info className="h-4 w-4 text-[#B58C6A] mt-0.5 shrink-0" aria-hidden="true" />
+            <p className="leading-relaxed">
+              신규 회원가입은 기본 <strong className="text-[#493B32]">소비자</strong> 권한으로 등록됩니다. 판매자 권한이 부여된 계정은 로그인 화면의 데모 계정으로 바로 체험하실 수 있습니다.
+            </p>
+          </div>
 
           <div className="mt-6 border-t border-[#E9DFD0] pt-5 flex items-center justify-between text-sm">
             <span className="text-[#6E5C50]">이미 계정이 있으신가요?</span>
             <button
               type="button"
-              onClick={() => onNavigate('login', form.role)}
+              onClick={() => onNavigate('login')}
               className="min-h-[44px] px-2 font-semibold text-[#8F6849] hover:text-[#493B32] transition-colors cursor-pointer"
             >
               로그인 하기

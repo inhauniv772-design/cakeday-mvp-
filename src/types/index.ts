@@ -1,8 +1,28 @@
-export type AppPage = 'home' | 'login' | 'signup';
+export type AppPage =
+  | 'home'
+  | 'login'
+  | 'signup'
+  | 'mode-select'
+  | 'consumer'
+  | 'seller';
 
 export type UserRole = 'consumer' | 'seller';
 
 export type RoleFilter = 'all' | UserRole;
+
+export interface UserAccount {
+  userId: string;
+  name: string;
+  email: string;
+  roles: UserRole[];
+  currentMode: UserRole | null;
+}
+
+export interface DemoAccountPreset extends UserAccount {
+  passwordHint: string;
+  roleLabel: string;
+  description: string;
+}
 
 export interface ServiceHighlight {
   id: string;
@@ -22,19 +42,26 @@ export interface RoleGuide {
   imageAlt: string;
 }
 
-export interface AuthFormState {
-  role: UserRole;
+export interface ModeOverview {
+  mode: UserRole;
+  title: string;
+  audienceLabel: string;
+  description: string;
+  workspaceNotice: string;
+  entryButtonLabel: string;
+  nextStepSummary: string;
+}
+
+export interface LoginFormState {
+  email: string;
+  password: string;
+}
+
+export interface SignupFormState {
   name: string;
   email: string;
   password: string;
-  shopName: string;
-}
-
-export interface AuthSubmissionPreview {
-  mode: 'login' | 'signup';
-  role: UserRole;
-  email: string;
-  message: string;
+  confirmPassword: string;
 }
 
 export interface BrandContent {
