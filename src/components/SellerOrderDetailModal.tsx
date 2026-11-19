@@ -13,6 +13,7 @@ import { formatKoreanDate } from '../utils/dateUtils';
 
 interface SellerOrderDetailModalProps {
   order: CakeOrder | null;
+  isMissingOrder?: boolean;
   onClose: () => void;
   onApprove: (orderId: string) => { ok: boolean; error?: string };
   onReject: (
@@ -29,6 +30,7 @@ type ActionStep =
 
 export const SellerOrderDetailModal: React.FC<SellerOrderDetailModalProps> = ({
   order,
+  isMissingOrder = false,
   onClose,
   onApprove,
   onReject,
@@ -44,7 +46,7 @@ export const SellerOrderDetailModal: React.FC<SellerOrderDetailModalProps> = ({
   }, [order?.orderId, order?.status]);
 
   useEffect(() => {
-    if (!order) return;
+    if (!order && !isMissingOrder) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose();
@@ -52,9 +54,47 @@ export const SellerOrderDetailModal: React.FC<SellerOrderDetailModalProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [order, onClose]);
+  }, [order, isMissingOrder, onClose]);
 
-  if (!order) return null;
+  if (!order) {
+    if (!isMissingOrder) return null;
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#493B32]/45 backdrop-blur-xs p-0 sm:p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="seller-order-missing-title"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <div className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-[#FFFFFF] border border-[#E9DFD0] shadow-xl p-6 space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <h2
+              id="seller-order-missing-title"
+              className="text-lg font-bold text-[#493B32]"
+            >
+              해당 주문 정보를 찾을 수 없습니다.
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl text-[#6E5C50] hover:bg-[#FAF8F3] hover:text-[#493B32] transition-colors cursor-pointer shrink-0"
+              aria-label="닫기"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
+          <p className="text-sm text-[#6E5C50] leading-relaxed">
+            선택하신 주문 내역이 변경되었거나 삭제되어 표시할 수 없습니다. 주문 목록에서 다시 선택해 주세요.
+          </p>
+          <Button variant="primary" size="lg" fullWidth onClick={onClose}>
+            닫기
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const isPending = order.status === '판매자 확인 대기';
 

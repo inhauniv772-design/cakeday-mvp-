@@ -291,12 +291,14 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
 
       <OrderDetailModal
         order={selectedOrder}
+        isMissingOrder={selectedOrderId !== null && !selectedOrder}
         onClose={() => setSelectedOrderId(null)}
         onOpenPayment={handleOpenPayment}
       />
 
       <MockPaymentModal
         order={paymentOrder}
+        isMissingOrder={paymentOrderId !== null && !paymentOrder}
         onClose={() => setPaymentOrderId(null)}
         onConfirmPayment={onCompletePayment}
       />

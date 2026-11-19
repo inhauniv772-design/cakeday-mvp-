@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -43,6 +43,9 @@ import {
 interface CakeOrderFormViewProps {
   shop: CakeShop;
   initialPickupDate: string;
+  draftStep?: 1 | 2 | 3;
+  draftForm?: CakeOrderFormInput;
+  onDraftChange?: (step: 1 | 2 | 3, form: CakeOrderFormInput) => void;
   onBackToDetail: () => void;
   onBackToSearch: () => void;
   onGoToMyPage: () => void;
@@ -59,29 +62,56 @@ type OrderStep = 1 | 2 | 3;
 export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
   shop,
   initialPickupDate,
+  draftStep,
+  draftForm,
+  onDraftChange,
   onBackToDetail,
   onBackToSearch,
   onGoToMyPage,
   onSubmitOrder,
 }) => {
   const todayStr = useMemo(() => getTodayString(), []);
-  const [step, setStep] = useState<OrderStep>(1);
+  const [step, setStep] = useState<OrderStep>(draftStep ?? 1);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
-  const [form, setForm] = useState<CakeOrderFormInput>({
-    pickupDate: initialPickupDate,
-    pickupTime: '',
-    cakeSize: '',
-    cakeShape: '',
-    cakeFlavor: '',
-    designType: '',
-    cakeColorPreset: '',
-    cakeColorCustom: '',
-    letteringText: '',
-    additionalRequests: '',
-  });
+  const [form, setForm] = useState<CakeOrderFormInput>(() =>
+    draftForm
+      ? { ...draftForm }
+      : {
+          pickupDate: initialPickupDate,
+          pickupTime: '',
+          cakeSize: '',
+          cakeShape: '',
+          cakeFlavor: '',
+          designType: '',
+          cakeColorPreset: '',
+          cakeColorCustom: '',
+          letteringText: '',
+          additionalRequests: '',
+        }
+  );
   const [errors, setErrors] = useState<OrderFormErrors>({});
   const [completedOrder, setCompletedOrder] = useState<CakeOrder | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const onDraftChangeRef = useRef(onDraftChange);
+  onDraftChangeRef.current = onDraftChange;
+
+  useEffect(() => {
+    if (!completedOrder) {
+      onDraftChangeRef.current?.(step, form);
+    }
+  }, [step, form, completedOrder]);
+
+  const updateStep = (nextStep: OrderStep) => {
+    setStep(nextStep);
+  };
+
+  const updateForm = (
+    updater: (prev: CakeOrderFormInput) => CakeOrderFormInput
+  ) => {
+    setForm(updater);
+  };
 
   const isPickupDateAvailable = shop.pickupAvailableDates.includes(
     form.pickupDate
@@ -97,7 +127,7 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
     if (Object.keys(step1Errors).length > 0) {
       return;
     }
-    setStep(2);
+    updateStep(2);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -115,38 +145,49 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
     if (Object.keys(step2Errors).length > 0) {
       return;
     }
-    setStep(3);
+    updateStep(3);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleConfirmSubmit = () => {
+    if (isSubmittingRef.current || completedOrder) {
+      return;
+    }
+
     const allErrors = validateFullOrderForm(form, shop, todayStr);
     setErrors(allErrors);
     if (Object.keys(allErrors).length > 0) {
       if (allErrors.pickupDate || allErrors.pickupTime) {
-        setStep(1);
+        updateStep(1);
       } else {
-        setStep(2);
+        updateStep(2);
       }
       return;
     }
 
-    const created = onSubmitOrder({
-      shop,
-      pickupDate: form.pickupDate,
-      pickupTime: form.pickupTime,
-      options: {
-        cakeSize: form.cakeSize,
-        cakeShape: form.cakeShape,
-        cakeFlavor: form.cakeFlavor,
-        designType: form.designType,
-        cakeColor: resolveOrderColor(form),
-        letteringText: form.letteringText.trim(),
-        additionalRequests: form.additionalRequests.trim(),
-      },
-    });
-    setCompletedOrder(created);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      const created = onSubmitOrder({
+        shop,
+        pickupDate: form.pickupDate,
+        pickupTime: form.pickupTime,
+        options: {
+          cakeSize: form.cakeSize,
+          cakeShape: form.cakeShape,
+          cakeFlavor: form.cakeFlavor,
+          designType: form.designType,
+          cakeColor: resolveOrderColor(form),
+          letteringText: form.letteringText.trim(),
+          additionalRequests: form.additionalRequests.trim(),
+        },
+      });
+      setCompletedOrder(created);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   if (completedOrder) {
@@ -287,7 +328,7 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
               type="button"
               disabled={item.num > step}
               onClick={() => {
-                if (item.num < step) setStep(item.num);
+                if (item.num < step) updateStep(item.num);
               }}
               className={cn(
                 'min-h-[44px] rounded-xl px-2 py-2 text-xs sm:text-sm font-medium text-center transition-colors',
@@ -371,7 +412,7 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
                   value={form.pickupDate}
                   minDate={todayStr}
                   onChange={(nextDate) => {
-                    setForm((prev) => ({ ...prev, pickupDate: nextDate }));
+                    updateForm((prev) => ({ ...prev, pickupDate: nextDate }));
                     setErrors((prev) => ({ ...prev, pickupDate: undefined }));
                     setIsDatePickerOpen(false);
                   }}
@@ -397,7 +438,7 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
                     key={time}
                     type="button"
                     onClick={() => {
-                      setForm((prev) => ({ ...prev, pickupTime: time }));
+                      updateForm((prev) => ({ ...prev, pickupTime: time }));
                       if (errors.pickupTime) {
                         setErrors((prev) => ({ ...prev, pickupTime: undefined }));
                       }
@@ -460,7 +501,7 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
                     type="button"
                     aria-pressed={isSelected}
                     onClick={() => {
-                      setForm((prev) => ({ ...prev, cakeSize: option }));
+                      updateForm((prev) => ({ ...prev, cakeSize: option }));
                       if (errors.cakeSize) {
                         setErrors((prev) => ({ ...prev, cakeSize: undefined }));
                       }
@@ -498,7 +539,7 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
                     type="button"
                     aria-pressed={isSelected}
                     onClick={() => {
-                      setForm((prev) => ({ ...prev, cakeShape: option }));
+                      updateForm((prev) => ({ ...prev, cakeShape: option }));
                       if (errors.cakeShape) {
                         setErrors((prev) => ({ ...prev, cakeShape: undefined }));
                       }
@@ -536,7 +577,7 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
                     type="button"
                     aria-pressed={isSelected}
                     onClick={() => {
-                      setForm((prev) => ({ ...prev, cakeFlavor: option }));
+                      updateForm((prev) => ({ ...prev, cakeFlavor: option }));
                       if (errors.cakeFlavor) {
                         setErrors((prev) => ({
                           ...prev,
@@ -577,7 +618,7 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
                     type="button"
                     aria-pressed={isSelected}
                     onClick={() => {
-                      setForm((prev) => ({ ...prev, designType: option }));
+                      updateForm((prev) => ({ ...prev, designType: option }));
                       if (errors.designType) {
                         setErrors((prev) => ({
                           ...prev,
@@ -618,7 +659,7 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
                     type="button"
                     aria-pressed={isSelected}
                     onClick={() => {
-                      setForm((prev) => ({
+                      updateForm((prev) => ({
                         ...prev,
                         cakeColorPreset: preset,
                       }));
@@ -647,7 +688,7 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
                 placeholder="예: 연한 버터 옐로우 바탕에 코코아 테두리"
                 value={form.cakeColorCustom}
                 onChange={(e) => {
-                  setForm((prev) => ({
+                  updateForm((prev) => ({
                     ...prev,
                     cakeColorCustom: e.target.value,
                   }));
@@ -675,7 +716,7 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
               placeholder="예: Happy Birthday! 소중한 하루"
               value={form.letteringText}
               onChange={(e) => {
-                setForm((prev) => ({
+                updateForm((prev) => ({
                   ...prev,
                   letteringText: e.target.value,
                 }));
@@ -703,7 +744,7 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
               placeholder="초 요청, 알레르기 유의 사항, 포장 요청 등 전달하고 싶은 내용을 적어 주세요"
               value={form.additionalRequests}
               onChange={(e) =>
-                setForm((prev) => ({
+                updateForm((prev) => ({
                   ...prev,
                   additionalRequests: e.target.value,
                 }))
@@ -713,7 +754,7 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
           </div>
 
           <div className="pt-4 border-t border-[#E9DFD0] flex flex-col-reverse sm:flex-row justify-between gap-3">
-            <Button variant="outline" size="lg" onClick={() => setStep(1)}>
+            <Button variant="outline" size="lg" onClick={() => updateStep(1)}>
               이전: 픽업 일정
             </Button>
             <Button variant="primary" size="lg" onClick={handleNextFromStep2}>
@@ -806,12 +847,17 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
           </div>
 
           <div className="pt-4 border-t border-[#E9DFD0] flex flex-col-reverse sm:flex-row justify-between gap-3">
-            <Button variant="outline" size="lg" onClick={() => setStep(2)}>
+            <Button variant="outline" size="lg" onClick={() => updateStep(2)}>
               <Edit3 className="h-4 w-4" aria-hidden="true" />
               <span>수정하기</span>
             </Button>
-            <Button variant="primary" size="lg" onClick={handleConfirmSubmit}>
-              주문 신청하기
+            <Button
+              variant="primary"
+              size="lg"
+              disabled={isSubmitting}
+              onClick={handleConfirmSubmit}
+            >
+              {isSubmitting ? '주문 처리 중...' : '주문 신청하기'}
             </Button>
           </div>
         </Card>

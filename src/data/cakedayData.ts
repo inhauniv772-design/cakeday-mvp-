@@ -150,3 +150,62 @@ export const MODE_OVERVIEWS: Record<'consumer' | 'seller', ModeOverview> = {
     nextStepSummary: '접수 주문 조회 · 상세 옵션 확인 · 주문 승인 및 거절 관리',
   },
 };
+
+export const DEMO_PRESET_USER_IDS = DEMO_ACCOUNT_PRESETS.map(
+  (preset) => preset.userId
+);
+
+export const FUTURE_EXPANSION_ITEMS: Array<{
+  category: string;
+  title: string;
+  description: string;
+}> = [
+  {
+    category: '맞춤 디자인 소통',
+    title: '소비자 디자인 참고 사진 첨부',
+    description:
+      '주문 신청 시 소비자가 직접 스케치나 참고 이미지를 첨부할 수 있는 기능',
+  },
+  {
+    category: '맞춤 디자인 소통',
+    title: '판매자 사진 확인 및 제작 가능 여부 응답',
+    description:
+      '첨부된 참고 이미지를 판매자가 검토하고 제작 가능 여부를 안내하는 기능',
+  },
+  {
+    category: '맞춤 디자인 소통',
+    title: '소비자·판매자 간 추가 요청 및 답변',
+    description:
+      '주문 접수 이후 세부 수정 요청과 매장 답변을 주고받는 1:1 커뮤니케이션 기능',
+  },
+  {
+    category: 'AI 기능 확장',
+    title: 'AI 기반 디자인 분석',
+    description:
+      '참고 케이크 이미지를 분석해 색상·파이핑·난이도 요소를 자동 정리하는 기능',
+  },
+  {
+    category: 'AI 기능 확장',
+    title: 'AI 기반 가격 견적',
+    description:
+      '선택 옵션과 디자인 복잡도를 바탕으로 예상 추가 견적을 산출하는 기능',
+  },
+  {
+    category: 'AI 기능 확장',
+    title: 'AI 자동화 및 판매자 업무 보조',
+    description:
+      '주문 요약, 제작 일정 배치, 안내 문구 작성을 보조하는 판매자 워크플로우 기능',
+  },
+  {
+    category: '실서비스 연동',
+    title: '실제 매장 데이터 연동',
+    description:
+      '외부 서버 데이터베이스를 통한 실시간 매장 재고·예약 가능 시간 동기화',
+  },
+  {
+    category: '실서비스 연동',
+    title: '실제 결제 API 연동',
+    description:
+      'PG사 실결제 모듈 및 환불·정산 처리가 연동된 상용 결제 시스템',
+  },
+];

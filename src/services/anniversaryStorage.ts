@@ -71,48 +71,103 @@ function markUserInitialized(userId: string): void {
 }
 
 function buildInitialDemoSeed(userId: string): Anniversary[] {
-  if (userId !== 'demo-dual-001') {
-    return [];
-  }
-
   const today = getTodayDateParts();
   const nowIso = new Date().toISOString();
 
-  return [
-    {
-      id: `anniv-seed-${userId}-1`,
-      userId,
-      title: '친구 생일',
-      category: 'friend',
-      date: formatDateParts(addDaysToDateParts(today, 3)),
-      memo: '레터링 케이크 문구 미리 정하기',
-      repeatAnnually: true,
-      createdAt: nowIso,
-      updatedAt: nowIso,
-    },
-    {
-      id: `anniv-seed-${userId}-2`,
-      userId,
-      title: '부모님 결혼기념일',
-      category: 'family',
-      date: formatDateParts(addDaysToDateParts(today, 12)),
-      memo: '생화 장식 커스텀 케이크 알아보기',
-      repeatAnnually: true,
-      createdAt: nowIso,
-      updatedAt: nowIso,
-    },
-    {
-      id: `anniv-seed-${userId}-3`,
-      userId,
-      title: '나의 생일',
-      category: 'birthday',
-      date: formatDateParts(addDaysToDateParts(today, 25)),
-      memo: '작은 1호 사이즈 케이크 예약 예정',
-      repeatAnnually: true,
-      createdAt: nowIso,
-      updatedAt: nowIso,
-    },
-  ];
+  if (userId === 'demo-dual-001') {
+    return [
+      {
+        id: `anniv-seed-${userId}-1`,
+        userId,
+        title: '친구 생일',
+        category: 'friend',
+        date: formatDateParts(addDaysToDateParts(today, 3)),
+        memo: '레터링 케이크 문구 미리 정하기',
+        repeatAnnually: true,
+        isDemoSeed: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: `anniv-seed-${userId}-2`,
+        userId,
+        title: '부모님 결혼기념일',
+        category: 'family',
+        date: formatDateParts(addDaysToDateParts(today, 12)),
+        memo: '생화 장식 커스텀 케이크 알아보기',
+        repeatAnnually: true,
+        isDemoSeed: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: `anniv-seed-${userId}-3`,
+        userId,
+        title: '나의 생일',
+        category: 'birthday',
+        date: formatDateParts(addDaysToDateParts(today, 25)),
+        memo: '작은 1호 사이즈 케이크 예약 예정',
+        repeatAnnually: true,
+        isDemoSeed: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+    ];
+  }
+
+  if (userId === 'demo-consumer-002') {
+    return [
+      {
+        id: `anniv-seed-${userId}-1`,
+        userId,
+        title: '어머니 생신',
+        category: 'family',
+        date: formatDateParts(addDaysToDateParts(today, 5)),
+        memo: '얼그레이 시폰 케이크 예약 예정',
+        repeatAnnually: true,
+        isDemoSeed: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: `anniv-seed-${userId}-2`,
+        userId,
+        title: '1주년 기념일',
+        category: 'couple',
+        date: formatDateParts(addDaysToDateParts(today, 19)),
+        memo: '하트형 미니 레터링 케이크 알아보기',
+        repeatAnnually: true,
+        isDemoSeed: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+    ];
+  }
+
+  return [];
+}
+
+export function resetDemoPresetAnniversaries(presetUserIds: string[]): number {
+  const presetSet = new Set(presetUserIds);
+  const preservedUserItems = readAllAnniversaries().filter(
+    (item) => !presetSet.has(item.userId)
+  );
+  const freshSeeds = presetUserIds.flatMap((id) => buildInitialDemoSeed(id));
+  writeAllAnniversaries([...preservedUserItems, ...freshSeeds]);
+
+  const existingInitialized = readInitializedUsers().filter(
+    (id) => !presetSet.has(id)
+  );
+  try {
+    window.localStorage.setItem(
+      INITIALIZED_USERS_STORAGE_KEY,
+      JSON.stringify([...existingInitialized, ...presetUserIds])
+    );
+  } catch {
+    // Ignore storage errors
+  }
+
+  return freshSeeds.length;
 }
 
 export function loadUserAnniversaries(userId: string): Anniversary[] {

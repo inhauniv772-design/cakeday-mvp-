@@ -103,6 +103,7 @@ export interface CakeOrder {
   rejectionReason?: string;
   reviewedAt?: string;
   payment?: CakeOrderPayment;
+  isDemoSeed?: boolean;
   orderedAt: string;
 }
 
@@ -122,6 +123,7 @@ export interface Anniversary {
   memo: string;
   repeatAnnually: boolean;
   acknowledgedOccurrenceKey?: string;
+  isDemoSeed?: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Info, KeyRound } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Info, KeyRound, RotateCcw } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { TextInput } from '../components/TextInput';
 import { BRAND_CONTENT, DEMO_ACCOUNT_PRESETS } from '../data/cakedayData';
+import { resetAllDemoTestData } from '../services/demoDataManager';
 import type { AppPage, DemoAccountPreset, LoginFormState, UserAccount } from '../types';
 import { validateLoginForm, type LoginValidationErrors } from '../utils/validation';
 
@@ -26,6 +27,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   });
   const [errors, setErrors] = useState<LoginValidationErrors>({});
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isConfirmingReset, setIsConfirmingReset] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+
+  const handleResetDemoData = () => {
+    const summary = resetAllDemoTestData();
+    setIsConfirmingReset(false);
+    setResetMessage(
+      `시연용 테스트 데이터를 초기 상태로 되돌렸습니다. (기념일 ${summary.anniversariesCount}건 · 주문 ${summary.ordersCount}건 / 직접 가입한 계정 데이터는 유지됩니다)`
+    );
+  };
 
   const handleDemoPresetLogin = (preset: DemoAccountPreset) => {
     onLoginSuccess(
@@ -225,6 +236,65 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 </strong>
                 {BRAND_CONTENT.authNoticeBody}
               </p>
+            </div>
+
+            {/* Safe Demo Data Reset Box */}
+            <div className="mt-4 rounded-2xl border border-[#E9DFD0] bg-[#FFFFFF]/90 p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-[#493B32]">
+                    발표 · 시연 환경 정리
+                  </p>
+                  <p className="mt-0.5 text-xs text-[#6E5C50] leading-relaxed">
+                    시연용 데모 계정(김다온·이서연·온기아틀리에)의 기념일 및 주문 4종 상태 데이터만 초기 상태로 되돌립니다. 직접 회원가입한 계정의 데이터는 삭제되지 않습니다.
+                  </p>
+                </div>
+              </div>
+
+              {resetMessage && (
+                <div
+                  role="status"
+                  className="rounded-xl border border-[#BBD0B5] bg-[#EEF4EC] px-3 py-2 text-xs text-[#355E3B] leading-relaxed"
+                >
+                  {resetMessage}
+                </div>
+              )}
+
+              {!isConfirmingReset ? (
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={() => {
+                    setResetMessage(null);
+                    setIsConfirmingReset(true);
+                  }}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>시연용 테스트 데이터 초기화</span>
+                </Button>
+              ) : (
+                <div className="rounded-xl border border-[#D6B89C] bg-[#FAF8F3] p-3 space-y-2.5">
+                  <p className="text-xs font-medium text-[#493B32] leading-relaxed">
+                    데모 계정 데이터가 초기 시연 상태로 재설정됩니다. 진행하시겠습니까?
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={handleResetDemoData}
+                    >
+                      초기화 확정
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="md"
+                      onClick={() => setIsConfirmingReset(false)}
+                    >
+                      취소
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         </div>

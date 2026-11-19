@@ -14,11 +14,14 @@ import {
   createUserOrder,
   loadUserOrders,
 } from '../services/orderStorage';
+import { Button } from '../components/Button';
+import { Card } from '../components/Card';
 import type {
   Anniversary,
   AnniversaryFormInput,
   AppPage,
   CakeOrder,
+  CakeOrderFormInput,
   CakeOrderOptions,
   CakeShop,
   ConsumerTab,
@@ -82,6 +85,11 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
   const [orderFilter, setOrderFilter] = useState<ShopOrderFilter>('all');
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [isOrdering, setIsOrdering] = useState(false);
+  const [orderDraft, setOrderDraft] = useState<{
+    shopId: string;
+    step: 1 | 2 | 3;
+    form: CakeOrderFormInput;
+  } | null>(null);
 
   const selectedShop = useMemo(
     () => mockShops.find((shop) => shop.shopId === selectedShopId) ?? null,
@@ -95,6 +103,7 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
     setEditingAnniversary(null);
     setSelectedShopId(null);
     setIsOrdering(false);
+    setOrderDraft(null);
   }, [user.userId]);
 
   const handleTabSelect = (tab: ConsumerTab) => {
@@ -181,6 +190,7 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
       options: payload.options,
     });
     setOrders(updatedOrders);
+    setOrderDraft(null);
     return createdOrder;
   };
 
@@ -272,6 +282,23 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
             <CakeOrderFormView
               shop={selectedShop}
               initialPickupDate={pickupDate}
+              draftStep={
+                orderDraft?.shopId === selectedShop.shopId
+                  ? orderDraft.step
+                  : undefined
+              }
+              draftForm={
+                orderDraft?.shopId === selectedShop.shopId
+                  ? orderDraft.form
+                  : undefined
+              }
+              onDraftChange={(nextStep, nextForm) =>
+                setOrderDraft({
+                  shopId: selectedShop.shopId,
+                  step: nextStep,
+                  form: nextForm,
+                })
+              }
               onBackToDetail={() => {
                 setIsOrdering(false);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -302,6 +329,27 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
               }}
             />
           )
+        ) : selectedShopId !== null ? (
+          <Card className="mx-auto max-w-lg py-10 text-center space-y-4">
+            <h2 className="text-lg font-bold text-[#493B32]">
+              요청하신 케이크 매장 정보를 찾을 수 없습니다.
+            </h2>
+            <p className="text-sm text-[#6E5C50] leading-relaxed">
+              매장 정보가 변경되었거나 유효하지 않은 매장 선택입니다. 매장 검색 화면에서 다시 선택해 주세요.
+            </p>
+            <div className="pt-1">
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => {
+                  setSelectedShopId(null);
+                  setIsOrdering(false);
+                }}
+              >
+                매장 검색으로 돌아가기
+              </Button>
+            </div>
+          </Card>
         ) : (
           <ConsumerCakeSearchView
             shops={mockShops}
@@ -315,6 +363,9 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
             onChangeOrderFilter={setOrderFilter}
             onResetFilters={handleResetSearchFilters}
             onSelectShop={(shopId) => {
+              if (orderDraft && orderDraft.shopId !== shopId) {
+                setOrderDraft(null);
+              }
               setSelectedShopId(shopId);
               setIsOrdering(false);
               window.scrollTo({ top: 0, behavior: 'smooth' });

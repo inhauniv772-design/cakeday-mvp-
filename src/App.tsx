@@ -6,6 +6,7 @@ import { ModeSelectPage } from './pages/ModeSelectPage';
 import { ModeWorkspacePage } from './pages/ModeWorkspacePage';
 import { SignupPage } from './pages/SignupPage';
 import { DEMO_ACCOUNT_PRESETS } from './data/cakedayData';
+import { ensureDemoOrdersSeeded } from './services/orderStorage';
 import type { AppPage, UserAccount, UserRole } from './types';
 import { hasRole } from './utils/auth';
 
@@ -37,7 +38,9 @@ function readStoredUser(): UserAccount | null {
 
 function readStoredRegisteredUsers(): UserAccount[] {
   try {
-    const raw = window.sessionStorage.getItem(DEMO_REGISTERED_STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(DEMO_REGISTERED_STORAGE_KEY) ??
+      window.sessionStorage.getItem(DEMO_REGISTERED_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as UserAccount[];
     return Array.isArray(parsed) ? parsed : [];
@@ -84,8 +87,12 @@ export const App: React.FC = () => {
   }, [currentUser]);
 
   useEffect(() => {
+    ensureDemoOrdersSeeded();
+  }, []);
+
+  useEffect(() => {
     try {
-      window.sessionStorage.setItem(
+      window.localStorage.setItem(
         DEMO_REGISTERED_STORAGE_KEY,
         JSON.stringify(registeredUsers)
       );

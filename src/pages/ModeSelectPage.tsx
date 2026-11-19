@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
-import { ArrowRight, Lock, ShieldAlert, Store, User } from 'lucide-react';
+import {
+  ArrowRight,
+  Layers,
+  Lock,
+  RotateCcw,
+  ShieldAlert,
+  Store,
+  User,
+} from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
-import { MODE_OVERVIEWS } from '../data/cakedayData';
+import { FUTURE_EXPANSION_ITEMS, MODE_OVERVIEWS } from '../data/cakedayData';
+import { resetAllDemoTestData } from '../services/demoDataManager';
 import type { UserAccount, UserRole } from '../types';
 import { formatRolesSummary, getModeDisplayName, hasRole } from '../utils/auth';
 import { cn } from '../utils/cn';
@@ -21,6 +30,16 @@ export const ModeSelectPage: React.FC<ModeSelectPageProps> = ({
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
     null
   );
+  const [isConfirmingReset, setIsConfirmingReset] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+
+  const handleResetDemoData = () => {
+    const summary = resetAllDemoTestData();
+    setIsConfirmingReset(false);
+    setResetMessage(
+      `시연용 데모 데이터(기념일 ${summary.anniversariesCount}건 · 주문 ${summary.ordersCount}건)를 초기 상태로 복원했습니다. 직접 가입한 계정의 데이터는 그대로 유지됩니다.`
+    );
+  };
 
   const handleModeClick = (targetMode: UserRole) => {
     const allowed = onSelectMode(targetMode);
@@ -171,6 +190,115 @@ export const ModeSelectPage: React.FC<ModeSelectPageProps> = ({
             );
           })}
         </div>
+
+        {/* Presentation Demo Data Reset Utility */}
+        <Card tone="beige" className="mt-8 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <h2 className="text-base font-bold text-[#493B32]">
+                시연용 테스트 데이터 관리
+              </h2>
+              <p className="text-xs sm:text-sm text-[#6E5C50] leading-relaxed">
+                발표 시연을 반복할 때 데모 프리셋 계정의 기념일·주문 상태(확인 대기 / 승인 완료 / 거절 / 결제 완료)만 초기 상태로 안전하게 복원할 수 있습니다.
+              </p>
+            </div>
+
+            {!isConfirmingReset && (
+              <Button
+                variant="outline"
+                size="md"
+                className="shrink-0"
+                onClick={() => {
+                  setResetMessage(null);
+                  setIsConfirmingReset(true);
+                }}
+              >
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                <span>시연용 테스트 데이터 초기화</span>
+              </Button>
+            )}
+          </div>
+
+          {resetMessage && (
+            <div
+              role="status"
+              className="rounded-2xl border border-[#BBD0B5] bg-[#EEF4EC] px-4 py-3 text-xs sm:text-sm text-[#355E3B]"
+            >
+              {resetMessage}
+            </div>
+          )}
+
+          {isConfirmingReset && (
+            <div className="rounded-2xl border border-[#D6B89C] bg-[#FFFFFF] p-4 space-y-3">
+              <p className="text-xs sm:text-sm font-medium text-[#493B32] leading-relaxed">
+                데모 프리셋 계정의 기념일 및 주문 내역만 초기 시연 데이터로 복원합니다. 회원가입으로 생성한 계정의 데이터는 삭제되지 않습니다. 계속할까요?
+              </p>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={handleResetDemoData}
+                >
+                  초기화 확정
+                </Button>
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={() => setIsConfirmingReset(false)}
+                >
+                  취소
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
+
+        {/* Future Expansion Roadmap (Strictly Non-Interactive & Outside Active MVP Scope) */}
+        <section
+          aria-labelledby="future-expansion-heading"
+          className="mt-10 rounded-3xl border border-dashed border-[#D8C9B5] bg-[#FAF8F3] p-5 sm:p-7 space-y-5"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#8F6849]">
+                <Layers className="h-4 w-4" aria-hidden="true" />
+                <span>향후 확장 예정 기능 · MVP 범위 외 (미구현 안내)</span>
+              </div>
+              <h2
+                id="future-expansion-heading"
+                className="text-lg sm:text-xl font-bold text-[#493B32]"
+              >
+                실서비스 고도화 단계에서 추가 예정인 기능
+              </h2>
+            </div>
+            <span className="inline-block self-start sm:self-auto rounded-lg border border-[#D8C9B5] bg-[#FFFFFF] px-3 py-1 text-xs font-medium text-[#6E5C50]">
+              참고용 로드맵 (비활성)
+            </span>
+          </div>
+
+          <p className="text-xs sm:text-sm text-[#6E5C50] leading-relaxed">
+            현재 CakeDay MVP는 핵심 주문·승인·모의 결제 흐름에 집중해 구현되었으며, 아래 기능은 다음 단계 확장 계획으로 분리되어 있습니다.
+          </p>
+
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {FUTURE_EXPANSION_ITEMS.map((item) => (
+              <li
+                key={item.title}
+                className="rounded-2xl border border-[#E9DFD0] bg-[#FFFFFF]/75 p-4 space-y-1"
+              >
+                <span className="inline-block text-[11px] font-semibold text-[#8F6849]">
+                  {item.category}
+                </span>
+                <h3 className="text-sm font-bold text-[#493B32]">
+                  {item.title}
+                </h3>
+                <p className="text-xs text-[#6E5C50] leading-relaxed">
+                  {item.description}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
     </section>
   );

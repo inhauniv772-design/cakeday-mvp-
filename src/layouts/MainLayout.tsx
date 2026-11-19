@@ -163,7 +163,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
       <footer
         className={`border-t border-[#E9DFD0] bg-[#FAF8F3] ${
-          currentUser && currentPage === 'consumer' ? 'pb-16 md:pb-0' : ''
+          currentUser && (currentPage === 'consumer' || currentPage === 'seller')
+            ? 'pb-16 md:pb-0'
+            : ''
         }`}
       >
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10 md:py-12">

@@ -410,6 +410,7 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
       {/* Seller Order Detail & Decision Modal */}
       <SellerOrderDetailModal
         order={selectedOrder}
+        isMissingOrder={selectedOrderId !== null && !selectedOrder}
         onClose={() => setSelectedOrderId(null)}
         onApprove={handleApproveOrder}
         onReject={handleRejectOrder}
