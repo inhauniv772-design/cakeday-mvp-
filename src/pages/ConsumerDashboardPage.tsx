@@ -9,10 +9,14 @@ import {
   toggleAnniversaryAcknowledgement,
   updateUserAnniversary,
 } from '../services/anniversaryStorage';
+import { createUserOrder, loadUserOrders } from '../services/orderStorage';
 import type {
   Anniversary,
   AnniversaryFormInput,
   AppPage,
+  CakeOrder,
+  CakeOrderOptions,
+  CakeShop,
   ConsumerTab,
   ShopOrderFilter,
   UserAccount,
@@ -20,6 +24,7 @@ import type {
 } from '../types';
 import { cn } from '../utils/cn';
 import { getTodayString } from '../utils/dateUtils';
+import { CakeOrderFormView } from './CakeOrderFormView';
 import { ConsumerCakeSearchView } from './ConsumerCakeSearchView';
 import { ConsumerCalendarView } from './ConsumerCalendarView';
 import { ConsumerHomeView } from './ConsumerHomeView';
@@ -54,6 +59,9 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
   const [anniversaries, setAnniversaries] = useState<Anniversary[]>(() =>
     loadUserAnniversaries(user.userId)
   );
+  const [orders, setOrders] = useState<CakeOrder[]>(() =>
+    loadUserOrders(user.userId)
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAnniversary, setEditingAnniversary] =
     useState<Anniversary | null>(null);
@@ -61,13 +69,14 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
     getTodayString()
   );
 
-  // Shop search & detail state (preserved across detail <-> search navigation)
+  // Shop search, detail & ordering state
   const mockShops = useMemo(() => getMockCakeShops(), []);
   const [pickupDate, setPickupDate] = useState<string>(() => getTodayString());
   const [selectedSido, setSelectedSido] = useState<string>('all');
   const [selectedSigungu, setSelectedSigungu] = useState<string>('all');
   const [orderFilter, setOrderFilter] = useState<ShopOrderFilter>('all');
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+  const [isOrdering, setIsOrdering] = useState(false);
 
   const selectedShop = useMemo(
     () => mockShops.find((shop) => shop.shopId === selectedShopId) ?? null,
@@ -76,13 +85,17 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
 
   useEffect(() => {
     setAnniversaries(loadUserAnniversaries(user.userId));
+    setOrders(loadUserOrders(user.userId));
     setIsModalOpen(false);
     setEditingAnniversary(null);
+    setSelectedShopId(null);
+    setIsOrdering(false);
   }, [user.userId]);
 
   const handleTabSelect = (tab: ConsumerTab) => {
     if (tab === 'search' && activeTab === 'search') {
       setSelectedShopId(null);
+      setIsOrdering(false);
     }
     setActiveTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -144,6 +157,23 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
     setOrderFilter('all');
   };
 
+  const handleSubmitOrder = (payload: {
+    shop: CakeShop;
+    pickupDate: string;
+    pickupTime: string;
+    options: CakeOrderOptions;
+  }): CakeOrder => {
+    const { createdOrder, orders: updatedOrders } = createUserOrder({
+      userId: user.userId,
+      shop: payload.shop,
+      pickupDate: payload.pickupDate,
+      pickupTime: payload.pickupTime,
+      options: payload.options,
+    });
+    setOrders(updatedOrders);
+    return createdOrder;
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-6 pb-24 md:py-10">
       {/* Desktop & Tablet Sub-Navigation */}
@@ -177,9 +207,13 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
         </div>
 
         <span className="text-sm text-[#6E5C50]">
-          소비자 모드 이용 중 · 등록 기념일{' '}
+          소비자 모드 이용 중 · 기념일{' '}
           <strong className="font-semibold text-[#493B32] tabular-nums">
             {anniversaries.length}
+          </strong>
+          건 · 주문{' '}
+          <strong className="font-semibold text-[#493B32] tabular-nums">
+            {orders.length}
           </strong>
           건
         </span>
@@ -207,14 +241,40 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
 
       {activeTab === 'search' &&
         (selectedShop ? (
-          <ShopDetailView
-            shop={selectedShop}
-            pickupDate={pickupDate}
-            onBackToSearch={() => {
-              setSelectedShopId(null);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
+          isOrdering ? (
+            <CakeOrderFormView
+              shop={selectedShop}
+              initialPickupDate={pickupDate}
+              onBackToDetail={() => {
+                setIsOrdering(false);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onBackToSearch={() => {
+                setIsOrdering(false);
+                setSelectedShopId(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onGoToMyPage={() => {
+                setIsOrdering(false);
+                setSelectedShopId(null);
+                handleTabSelect('mypage');
+              }}
+              onSubmitOrder={handleSubmitOrder}
+            />
+          ) : (
+            <ShopDetailView
+              shop={selectedShop}
+              pickupDate={pickupDate}
+              onBackToSearch={() => {
+                setSelectedShopId(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onStartOrder={() => {
+                setIsOrdering(true);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          )
         ) : (
           <ConsumerCakeSearchView
             shops={mockShops}
@@ -229,6 +289,7 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
             onResetFilters={handleResetSearchFilters}
             onSelectShop={(shopId) => {
               setSelectedShopId(shopId);
+              setIsOrdering(false);
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
           />
@@ -238,7 +299,9 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
         <ConsumerMyPageView
           user={user}
           anniversaryCount={anniversaries.length}
+          orders={orders}
           onNavigate={onNavigate}
+          onGoToSearch={() => handleTabSelect('search')}
           onSwitchMode={onSwitchMode}
           onLogout={onLogout}
         />

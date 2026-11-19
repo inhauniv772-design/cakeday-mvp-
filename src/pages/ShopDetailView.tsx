@@ -1,10 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   ArrowLeft,
   Calendar,
-  CheckCircle2,
   Clock,
-  Info,
   MapPin,
   Phone,
 } from 'lucide-react';
@@ -21,101 +19,20 @@ interface ShopDetailViewProps {
   shop: CakeShop;
   pickupDate: string;
   onBackToSearch: () => void;
+  onStartOrder: () => void;
 }
 
 export const ShopDetailView: React.FC<ShopDetailViewProps> = ({
   shop,
   pickupDate,
   onBackToSearch,
+  onStartOrder,
 }) => {
   const todayStr = useMemo(() => getTodayString(), []);
   const evaluation = useMemo(
     () => evaluateShopPickup(shop, pickupDate, todayStr),
     [shop, pickupDate, todayStr]
   );
-
-  const [isOrderEntryOpened, setIsOrderEntryOpened] = useState(false);
-
-  if (isOrderEntryOpened) {
-    return (
-      <div className="mx-auto max-w-2xl space-y-6">
-        <button
-          type="button"
-          onClick={() => setIsOrderEntryOpened(false)}
-          className="inline-flex items-center gap-2 min-h-[44px] text-sm font-medium text-[#6E5C50] hover:text-[#493B32] transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          매장 상세로 돌아가기
-        </button>
-
-        <Card className="p-6 sm:p-8 space-y-6">
-          <div className="flex items-start gap-3">
-            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#E9DFD0] text-[#8F6849] shrink-0">
-              <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <div>
-              <p className="text-xs font-medium text-[#8F6849]">
-                주문 화면 연결 준비
-              </p>
-              <h1 className="mt-1 text-xl sm:text-2xl font-bold text-[#493B32]">
-                선택하신 매장 및 픽업 날짜가 전달되었습니다
-              </h1>
-            </div>
-          </div>
-
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl bg-[#FAF8F3] border border-[#E9DFD0] p-4 text-sm">
-            <div>
-              <dt className="text-xs text-[#6E5C50]">선택 매장</dt>
-              <dd className="mt-1 font-semibold text-[#493B32]">
-                {shop.shopName}
-              </dd>
-              <dd className="text-xs text-[#6E5C50]">
-                {shop.region.sido} {shop.region.sigungu}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-[#6E5C50]">선택한 픽업 날짜</dt>
-              <dd className="mt-1 font-semibold text-[#8F6849]">
-                {formatKoreanDate(pickupDate)}
-              </dd>
-              <dd className="text-xs text-[#6E5C50]">{evaluation.badgeLabel}</dd>
-            </div>
-            <div className="sm:col-span-2 pt-3 border-t border-[#E9DFD0] flex items-baseline justify-between gap-3">
-              <div>
-                <dt className="text-xs text-[#6E5C50]">대표 케이크</dt>
-                <dd className="mt-1 font-semibold text-[#493B32]">
-                  {shop.representativeCakeName}
-                </dd>
-              </div>
-              <span className="text-base font-bold text-[#8F6849] tabular-nums">
-                {formatPriceKRW(shop.representativeCakePrice)}
-              </span>
-            </div>
-          </dl>
-
-          <div className="flex items-start gap-2.5 rounded-2xl bg-[#E9DFD0]/45 p-4 text-xs sm:text-sm text-[#6E5C50]">
-            <Info className="h-4 w-4 text-[#8F6849] mt-0.5 shrink-0" aria-hidden="true" />
-            <p className="leading-relaxed">
-              케이크 커스터마이징 옵션 선택 및 실제 주문 신청·결제 기능은 다음 개발 단계에서 이 화면에 연결될 예정입니다.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => setIsOrderEntryOpened(false)}
-            >
-              매장 상세 보기
-            </Button>
-            <Button variant="primary" size="lg" onClick={onBackToSearch}>
-              다른 매장 더 찾아보기
-            </Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -277,7 +194,7 @@ export const ShopDetailView: React.FC<ShopDetailViewProps> = ({
                 size="lg"
                 fullWidth
                 disabled={!evaluation.isPickupAvailable}
-                onClick={() => setIsOrderEntryOpened(true)}
+                onClick={onStartOrder}
               >
                 케이크 주문하기
               </Button>

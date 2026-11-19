@@ -36,6 +36,48 @@ export interface CakeShop {
   isMockData: true;
 }
 
+export type CakeOrderStatus = '판매자 확인 대기';
+
+export interface CakeOrderOptions {
+  cakeSize: string;
+  cakeShape: string;
+  cakeFlavor: string;
+  designType: string;
+  cakeColor: string;
+  letteringText: string;
+  additionalRequests: string;
+}
+
+export interface CakeOrderFormInput {
+  pickupDate: string;
+  pickupTime: string;
+  cakeSize: string;
+  cakeShape: string;
+  cakeFlavor: string;
+  designType: string;
+  cakeColorPreset: string;
+  cakeColorCustom: string;
+  letteringText: string;
+  additionalRequests: string;
+}
+
+export interface CakeOrder {
+  orderId: string;
+  userId: string;
+  shopId: string;
+  shopName: string;
+  shopRegionText: string;
+  cakeName: string;
+  cakePrice: number;
+  cakeImage: string;
+  pickupDate: string;
+  pickupTime: string;
+  options: CakeOrderOptions;
+  applicationStatus: '주문 신청 완료';
+  status: CakeOrderStatus;
+  orderedAt: string;
+}
+
 export type AnniversaryCategory =
   | 'birthday'
   | 'couple'
