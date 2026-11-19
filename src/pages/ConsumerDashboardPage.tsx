@@ -9,7 +9,11 @@ import {
   toggleAnniversaryAcknowledgement,
   updateUserAnniversary,
 } from '../services/anniversaryStorage';
-import { createUserOrder, loadUserOrders } from '../services/orderStorage';
+import {
+  completeDemoPaymentForOrder,
+  createUserOrder,
+  loadUserOrders,
+} from '../services/orderStorage';
 import type {
   Anniversary,
   AnniversaryFormInput,
@@ -18,6 +22,7 @@ import type {
   CakeOrderOptions,
   CakeShop,
   ConsumerTab,
+  PaymentMethod,
   ShopOrderFilter,
   UserAccount,
   UserRole,
@@ -179,6 +184,23 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
     return createdOrder;
   };
 
+  const handleCompletePayment = (
+    orderId: string,
+    paymentMethod: PaymentMethod
+  ) => {
+    const result = completeDemoPaymentForOrder(
+      orderId,
+      user.userId,
+      paymentMethod
+    );
+    setOrders(result.orders);
+    return {
+      ok: result.ok,
+      error: result.error,
+      updatedOrder: result.updatedOrder,
+    };
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-6 pb-24 md:py-10">
       {/* Desktop & Tablet Sub-Navigation */}
@@ -308,6 +330,7 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
           onNavigate={onNavigate}
           onGoToSearch={() => handleTabSelect('search')}
           onSwitchMode={onSwitchMode}
+          onCompletePayment={handleCompletePayment}
           onLogout={onLogout}
         />
       )}

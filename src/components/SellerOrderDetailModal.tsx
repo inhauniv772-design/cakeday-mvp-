@@ -229,26 +229,70 @@ export const SellerOrderDetailModal: React.FC<SellerOrderDetailModalProps> = ({
           </div>
         </dl>
 
+        {/* Payment Status Section */}
+        <div className="rounded-2xl bg-[#FAF8F3] border border-[#E9DFD0] p-4 space-y-2.5">
+          <p className="text-xs font-semibold text-[#8F6849]">결제 상태 정보</p>
+          <dl className="space-y-2 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-[#6E5C50]">결제 여부</dt>
+              <dd
+                className={cn(
+                  'font-semibold',
+                  order.payment?.isPaid ? 'text-[#355E3B]' : 'text-[#493B32]'
+                )}
+              >
+                {order.payment?.isPaid ? '결제 완료 (시연용)' : '미결제'}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 pt-2 border-t border-[#E9DFD0]">
+              <dt className="text-[#6E5C50]">결제 수단</dt>
+              <dd className="font-medium text-[#493B32]">
+                {order.payment?.paymentMethod || '-'}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 pt-2 border-t border-[#E9DFD0]">
+              <dt className="text-[#6E5C50]">결제 완료 날짜</dt>
+              <dd className="font-medium text-[#493B32] tabular-nums">
+                {order.payment?.paidAt
+                  ? formatOrderTimestampDate(order.payment.paidAt)
+                  : '-'}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 pt-2 border-t border-[#E9DFD0]">
+              <dt className="text-[#6E5C50]">결제 금액</dt>
+              <dd className="font-semibold text-[#493B32] tabular-nums">
+                {order.payment
+                  ? formatPriceKRW(order.payment.paidAmount)
+                  : `${formatPriceKRW(order.cakePrice)} (기본 가격 기준 · 미결제)`}
+              </dd>
+            </div>
+          </dl>
+        </div>
+
         {/* Already Processed Banner (Duplicate Decision Guard) */}
         {!isPending && (
           <div
             className={cn(
               'rounded-2xl border p-4 text-sm space-y-2',
-              order.status === '판매자 승인 완료'
+              order.status === '결제 완료 및 예약 확정'
                 ? 'border-[#BBD0B5] bg-[#EEF4EC] text-[#355E3B]'
-                : 'border-[#E4B8AF] bg-[#FBF0ED] text-[#9F4A3B]'
+                : order.status === '판매자 승인 완료'
+                  ? 'border-[#D6B89C] bg-[#F7EFE6] text-[#8F6849]'
+                  : 'border-[#E4B8AF] bg-[#FBF0ED] text-[#9F4A3B]'
             )}
           >
             <div className="flex items-center gap-2 font-bold">
-              {order.status === '판매자 승인 완료' ? (
-                <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-              ) : (
+              {order.status === '판매자 거절' ? (
                 <XCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
               )}
               <span>
-                {order.status === '판매자 승인 완료'
-                  ? '이미 승인 완료된 주문입니다.'
-                  : '이미 거절 처리된 주문입니다.'}
+                {order.status === '결제 완료 및 예약 확정'
+                  ? '소비자 모의 결제가 완료되어 예약이 최종 확정되었습니다.'
+                  : order.status === '판매자 승인 완료'
+                    ? '승인 완료된 주문입니다. 소비자의 결제를 기다리고 있습니다.'
+                    : '이미 거절 처리된 주문입니다.'}
               </span>
             </div>
 
@@ -265,7 +309,7 @@ export const SellerOrderDetailModal: React.FC<SellerOrderDetailModalProps> = ({
 
             {order.reviewedAt && (
               <p className="text-xs opacity-90 tabular-nums">
-                처리 일시: {formatOrderTimestampDate(order.reviewedAt)}
+                승인/거절 일시: {formatOrderTimestampDate(order.reviewedAt)}
               </p>
             )}
           </div>

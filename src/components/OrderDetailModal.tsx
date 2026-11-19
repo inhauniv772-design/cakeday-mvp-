@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
-import { CheckCircle2, Clock3, X, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock3, CreditCard, X, XCircle } from 'lucide-react';
 import { Button } from './Button';
 import { SafeImage } from './SafeImage';
 import { formatPriceKRW } from '../data/mockShops';
 import {
   formatOrderTimestampDate,
+  getConsumerOrderStatusLabel,
   getOrderStatusBadgeClass,
 } from '../services/orderStorage';
 import type { CakeOrder } from '../types';
@@ -14,11 +15,13 @@ import { formatKoreanDate } from '../utils/dateUtils';
 interface OrderDetailModalProps {
   order: CakeOrder | null;
   onClose: () => void;
+  onOpenPayment?: (orderId: string) => void;
 }
 
 export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   order,
   onClose,
+  onOpenPayment,
 }) => {
   useEffect(() => {
     if (!order) return;
@@ -32,6 +35,12 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   }, [order, onClose]);
 
   if (!order) return null;
+
+  const statusLabel = getConsumerOrderStatusLabel(order);
+  const isApprovedAwaitingPayment =
+    order.status === '판매자 승인 완료' && !order.payment?.isPaid;
+  const isPaidConfirmed =
+    order.status === '결제 완료 및 예약 확정' || Boolean(order.payment?.isPaid);
 
   return (
     <div
@@ -53,17 +62,17 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           <div>
             <span
               className={cn(
-                'inline-block rounded-full px-3 py-1 text-xs font-semibold',
+                'inline-block rounded-lg px-3 py-1 text-xs font-semibold',
                 getOrderStatusBadgeClass(order.status)
               )}
             >
-              {order.status}
+              {statusLabel}
             </span>
             <h2
               id="order-detail-modal-title"
               className="mt-2 text-xl font-bold text-[#493B32]"
             >
-              주문 상세 내역
+              {isPaidConfirmed ? '예약 확정 및 결제 정보' : '주문 상세 내역'}
             </h2>
             <p className="mt-0.5 text-xs text-[#6E5C50] tabular-nums">
               주문 번호: {order.orderId}
@@ -81,21 +90,38 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
         </div>
 
         {/* Status Feedback Banner */}
-        {order.status === '판매자 승인 완료' && (
+        {isPaidConfirmed && (
           <div className="flex items-start gap-2.5 rounded-2xl border border-[#BBD0B5] bg-[#EEF4EC] p-4 text-xs sm:text-sm text-[#355E3B]">
             <CheckCircle2
               className="h-4 w-4 mt-0.5 shrink-0"
               aria-hidden="true"
             />
             <div className="space-y-1">
-              <p className="font-bold">판매자가 주문을 승인했습니다.</p>
+              <p className="font-bold">결제 완료 및 예약이 최종 확정되었습니다.</p>
               <p className="leading-relaxed">
-                선택하신 픽업 일정({formatKoreanDate(order.pickupDate)} ·{' '}
-                {order.pickupTime})에 맞춰 케이크가 준비될 예정입니다.
+                예약된 픽업 일정({formatKoreanDate(order.pickupDate)} ·{' '}
+                {order.pickupTime})에 맞춰 매장에서 케이크를 준비합니다.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {isApprovedAwaitingPayment && (
+          <div className="flex items-start gap-2.5 rounded-2xl border border-[#D6B89C] bg-[#F7EFE6] p-4 text-xs sm:text-sm text-[#493B32]">
+            <CheckCircle2
+              className="h-4 w-4 text-[#8F6849] mt-0.5 shrink-0"
+              aria-hidden="true"
+            />
+            <div className="space-y-1">
+              <p className="font-bold text-[#8F6849]">
+                판매자가 주문을 승인했습니다. 결제를 진행해 주세요.
+              </p>
+              <p className="leading-relaxed text-[#6E5C50]">
+                아래 결제하기 버튼을 눌러 시연용 결제를 완료하면 예약이 최종 확정됩니다.
               </p>
               {order.reviewedAt && (
-                <p className="text-xs opacity-90 tabular-nums">
-                  처리 일시: {formatOrderTimestampDate(order.reviewedAt)}
+                <p className="text-xs text-[#6E5C50] tabular-nums">
+                  승인 일시: {formatOrderTimestampDate(order.reviewedAt)}
                 </p>
               )}
             </div>
@@ -131,9 +157,37 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               aria-hidden="true"
             />
             <p className="leading-relaxed">
-              매장에서 주문 내용을 확인하고 있습니다. 승인 또는 거절 처리 시 이 화면에서 바로 확인할 수 있습니다.
+              매장에서 주문 내용을 확인하고 있습니다. 판매자 승인 완료 후 결제를 진행할 수 있습니다.
             </p>
           </div>
+        )}
+
+        {/* Paid Order Payment Summary */}
+        {isPaidConfirmed && order.payment && (
+          <dl className="rounded-2xl bg-[#EEF4EC]/60 border border-[#BBD0B5] p-4 space-y-2.5 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-[#355E3B]">결제 완료 여부</dt>
+              <dd className="font-bold text-[#355E3B]">결제 완료 (시연용)</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 pt-2 border-t border-[#BBD0B5]/60">
+              <dt className="text-[#355E3B]">결제 수단</dt>
+              <dd className="font-semibold text-[#493B32]">
+                {order.payment.paymentMethod}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 pt-2 border-t border-[#BBD0B5]/60">
+              <dt className="text-[#355E3B]">결제 완료 날짜 및 시간</dt>
+              <dd className="font-medium text-[#493B32] tabular-nums">
+                {formatOrderTimestampDate(order.payment.paidAt)}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 pt-2 border-t border-[#BBD0B5]/60">
+              <dt className="text-[#355E3B]">결제 금액</dt>
+              <dd className="font-bold text-[#493B32] tabular-nums">
+                {formatPriceKRW(order.payment.paidAmount)}
+              </dd>
+            </div>
+          </dl>
         )}
 
         <div className="flex items-center gap-3.5 rounded-2xl bg-[#FAF8F3] border border-[#E9DFD0] p-3.5">
@@ -171,7 +225,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           </div>
           <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-[#E9DFD0]">
             <dt className="text-[#6E5C50]">현재 주문 상태</dt>
-            <dd className="font-semibold text-[#493B32]">{order.status}</dd>
+            <dd className="font-semibold text-[#493B32]">{statusLabel}</dd>
           </div>
         </dl>
 
@@ -220,9 +274,26 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           </div>
         </dl>
 
-        <Button variant="primary" size="lg" fullWidth onClick={onClose}>
-          확인
-        </Button>
+        {isApprovedAwaitingPayment && onOpenPayment ? (
+          <div className="flex flex-col-reverse sm:flex-row gap-2.5">
+            <Button variant="outline" size="lg" fullWidth onClick={onClose}>
+              닫기
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              onClick={() => onOpenPayment(order.orderId)}
+            >
+              <CreditCard className="h-4 w-4" aria-hidden="true" />
+              <span>결제하기</span>
+            </Button>
+          </div>
+        ) : (
+          <Button variant="primary" size="lg" fullWidth onClick={onClose}>
+            확인
+          </Button>
+        )}
       </div>
     </div>
   );

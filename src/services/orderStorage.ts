@@ -3,6 +3,7 @@ import type {
   CakeOrderOptions,
   CakeOrderStatus,
   CakeShop,
+  PaymentMethod,
   SellerOrderFilter,
 } from '../types';
 
@@ -52,6 +53,24 @@ export const CAKE_COLOR_PRESETS = [
   '직접 입력',
 ];
 
+export const PAYMENT_METHOD_OPTIONS: Array<{
+  method: PaymentMethod;
+  subtitle: string;
+}> = [
+  {
+    method: '신용·체크카드',
+    subtitle: '시연용 선택 (실제 카드번호를 입력받거나 저장하지 않습니다)',
+  },
+  {
+    method: '간편결제',
+    subtitle: '시연용 선택 (외부 결제 앱 연동 없이 즉시 완료 처리됩니다)',
+  },
+  {
+    method: '무통장입금',
+    subtitle: '시연용 선택 (실제 계좌이체나 금융정보 입력 없이 처리됩니다)',
+  },
+];
+
 function readAllOrders(): CakeOrder[] {
   try {
     const raw = window.localStorage.getItem(ORDERS_STORAGE_KEY);
@@ -95,17 +114,23 @@ export function filterSellerOrders(
   if (filter === 'approved') {
     return orders.filter((order) => order.status === '판매자 승인 완료');
   }
+  if (filter === 'paid') {
+    return orders.filter((order) => order.status === '결제 완료 및 예약 확정');
+  }
   if (filter === 'rejected') {
     return orders.filter((order) => order.status === '판매자 거절');
   }
   return orders;
 }
 
-export function getSellerOrderCounts(orders: CakeOrder[]): Record<SellerOrderFilter, number> {
+export function getSellerOrderCounts(
+  orders: CakeOrder[]
+): Record<SellerOrderFilter, number> {
   return {
     all: orders.length,
     pending: orders.filter((o) => o.status === '판매자 확인 대기').length,
     approved: orders.filter((o) => o.status === '판매자 승인 완료').length,
+    paid: orders.filter((o) => o.status === '결제 완료 및 예약 확정').length,
     rejected: orders.filter((o) => o.status === '판매자 거절').length,
   };
 }
@@ -287,9 +312,116 @@ export function rejectOrderAsSeller(
   };
 }
 
+export interface ConsumerPaymentResult {
+  ok: boolean;
+  error?: string;
+  updatedOrder?: CakeOrder;
+  orders: CakeOrder[];
+}
+
+export function completeDemoPaymentForOrder(
+  orderId: string,
+  userId: string,
+  paymentMethod: PaymentMethod
+): ConsumerPaymentResult {
+  const allowedMethods: PaymentMethod[] = [
+    '신용·체크카드',
+    '간편결제',
+    '무통장입금',
+  ];
+  if (!allowedMethods.includes(paymentMethod)) {
+    return {
+      ok: false,
+      error: '유효한 결제 수단을 선택해 주세요.',
+      orders: loadUserOrders(userId),
+    };
+  }
+
+  const all = readAllOrders();
+  const targetIndex = all.findIndex((order) => order.orderId === orderId);
+
+  if (targetIndex === -1) {
+    return {
+      ok: false,
+      error: '해당 주문을 찾을 수 없습니다.',
+      orders: loadUserOrders(userId),
+    };
+  }
+
+  const target = all[targetIndex];
+  if (target.userId !== userId) {
+    return {
+      ok: false,
+      error: '본인이 신청한 주문만 결제할 수 있습니다.',
+      orders: loadUserOrders(userId),
+    };
+  }
+
+  if (target.status === '결제 완료 및 예약 확정' || target.payment?.isPaid) {
+    return {
+      ok: false,
+      error: '이미 결제가 완료되어 예약이 확정된 주문입니다.',
+      orders: loadUserOrders(userId),
+    };
+  }
+
+  if (target.status === '판매자 확인 대기') {
+    return {
+      ok: false,
+      error: '판매자가 주문을 승인한 후에만 결제를 진행할 수 있습니다.',
+      orders: loadUserOrders(userId),
+    };
+  }
+
+  if (target.status === '판매자 거절') {
+    return {
+      ok: false,
+      error: '판매자가 거절한 주문은 결제할 수 없습니다.',
+      orders: loadUserOrders(userId),
+    };
+  }
+
+  const updatedOrder: CakeOrder = {
+    ...target,
+    status: '결제 완료 및 예약 확정',
+    payment: {
+      isPaid: true,
+      paymentMethod,
+      paidAt: new Date().toISOString(),
+      paidAmount: target.cakePrice,
+      basePrice: target.cakePrice,
+      additionalOptionPrice: null,
+      isDemoPayment: true,
+    },
+  };
+
+  const updatedAll = all.map((order, index) =>
+    index === targetIndex ? updatedOrder : order
+  );
+  writeAllOrders(updatedAll);
+
+  return {
+    ok: true,
+    updatedOrder,
+    orders: updatedAll
+      .filter((order) => order.userId === userId)
+      .sort((a, b) => b.orderedAt.localeCompare(a.orderedAt)),
+  };
+}
+
+export function getConsumerOrderStatusLabel(order: CakeOrder): string {
+  if (order.status === '판매자 승인 완료') {
+    return '판매자 승인 완료 및 결제 대기';
+  }
+  return order.status;
+}
+
 export function getOrderStatusBadgeClass(status: CakeOrderStatus): string {
-  if (status === '판매자 승인 완료') {
+  if (status === '결제 완료 및 예약 확정') {
     return 'bg-[#EEF4EC] text-[#355E3B] border border-[#BBD0B5]';
+  }
+  if (status === '판매자 승인 완료') {
+    return 'bg-[#F7EFE6] text-[#8F6849] border border-[#D6B89C]';
   }
   if (status === '판매자 거절') {
     return 'bg-[#FBF0ED] text-[#9F4A3B] border border-[#E4B8AF]';

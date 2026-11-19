@@ -10,7 +10,7 @@ import {
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { SellerOrderDetailModal } from '../components/SellerOrderDetailModal';
-import { getMockCakeShops } from '../data/mockShops';
+import { getMockCakeShops, formatPriceKRW } from '../data/mockShops';
 import {
   approveOrderAsSeller,
   filterSellerOrders,
@@ -41,7 +41,8 @@ interface SellerDashboardPageProps {
 const FILTER_OPTIONS: Array<{ id: SellerOrderFilter; label: string }> = [
   { id: 'all', label: '전체 주문' },
   { id: 'pending', label: '확인 대기' },
-  { id: 'approved', label: '승인 완료' },
+  { id: 'approved', label: '승인 완료(미결제)' },
+  { id: 'paid', label: '결제 완료' },
   { id: 'rejected', label: '거절' },
 ];
 
@@ -86,7 +87,7 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
     setOrders(result.orders);
     if (result.ok) {
       setDecisionNotice(
-        `주문(${orderId})을 승인 완료 처리했습니다. 소비자 주문 내역에도 반영되었습니다.`
+        `주문(${orderId})을 승인 완료 처리했습니다. 소비자가 결제를 진행할 수 있습니다.`
       );
     }
     return { ok: result.ok, error: result.error };
@@ -116,7 +117,7 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
               {user.name}님의 매장 주문 관리
             </h1>
             <p className="text-sm text-[#6E5C50]">
-              운영 중인 매장에 접수된 커스텀 케이크 주문을 확인하고 승인 또는 거절할 수 있습니다.
+              운영 중인 매장에 접수된 커스텀 케이크 주문을 확인하고 승인·거절 및 결제 완료 여부를 관리할 수 있습니다.
             </p>
           </div>
 
@@ -160,7 +161,7 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
             </div>
           </div>
           <span className="text-xs text-[#6E5C50] tabular-nums shrink-0">
-            접수 주문 총 {counts.all}건
+            접수 {counts.all}건 · 결제 완료 {counts.paid}건
           </span>
         </div>
       </Card>
@@ -255,73 +256,95 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
         </Card>
       ) : (
         <Card className="p-0 sm:p-0 divide-y divide-[#E9DFD0] overflow-hidden">
-          {filteredOrders.map((order) => (
-            <button
-              key={order.orderId}
-              type="button"
-              onClick={() => setSelectedOrderId(order.orderId)}
-              className="w-full p-5 sm:p-6 text-left flex items-center justify-between gap-4 hover:bg-[#FAF8F3] transition-colors cursor-pointer"
-            >
-              <div className="min-w-0 flex-1 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
+          {filteredOrders.map((order) => {
+            const isPaid =
+              order.status === '결제 완료 및 예약 확정' ||
+              Boolean(order.payment?.isPaid);
+            const paymentStateLabel = isPaid
+              ? `결제 완료 (${order.payment?.paymentMethod ?? '시연용'} · ${formatPriceKRW(order.payment?.paidAmount ?? order.cakePrice)})`
+              : order.status === '판매자 승인 완료'
+                ? '미결제 (소비자 결제 대기 중)'
+                : order.status === '판매자 거절'
+                  ? '결제 불가 (거절된 주문)'
+                  : '미결제 (승인 확인 대기)';
+
+            return (
+              <button
+                key={order.orderId}
+                type="button"
+                onClick={() => setSelectedOrderId(order.orderId)}
+                className="w-full p-5 sm:p-6 text-left flex items-center justify-between gap-4 hover:bg-[#FAF8F3] transition-colors cursor-pointer"
+              >
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={cn(
+                        'inline-block rounded-lg px-2.5 py-0.5 text-xs font-semibold',
+                        getOrderStatusBadgeClass(order.status)
+                      )}
+                    >
+                      {order.status}
+                    </span>
+                    <span className="text-xs font-medium text-[#6E5C50] tabular-nums">
+                      주문번호 {order.orderId}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+                    <h2 className="text-base sm:text-lg font-bold text-[#493B32] truncate">
+                      {order.cakeName}
+                    </h2>
+                    <span className="text-xs font-medium text-[#8F6849] shrink-0">
+                      {order.shopName}
+                    </span>
+                  </div>
+
+                  <dl className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 sm:gap-4 text-xs sm:text-sm text-[#6E5C50]">
+                    <div className="truncate">
+                      <dt className="inline text-[#8F6849] font-medium">주문자: </dt>
+                      <dd className="inline text-[#493B32] font-medium">
+                        {order.customerName || '이전 데모 주문'}
+                        {order.customerEmail ? ` (${order.customerEmail})` : ''}
+                      </dd>
+                    </div>
+                    <div className="tabular-nums">
+                      <dt className="inline text-[#8F6849] font-medium">픽업: </dt>
+                      <dd className="inline text-[#493B32] font-semibold">
+                        {formatKoreanShortDate(order.pickupDate)} ·{' '}
+                        {order.pickupTime}
+                      </dd>
+                    </div>
+                    <div className="tabular-nums">
+                      <dt className="inline text-[#8F6849] font-medium">신청일: </dt>
+                      <dd className="inline">
+                        {formatOrderTimestampDate(order.orderedAt)}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <p
                     className={cn(
-                      'inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                      getOrderStatusBadgeClass(order.status)
+                      'text-xs font-medium tabular-nums',
+                      isPaid ? 'text-[#355E3B]' : 'text-[#6E5C50]'
                     )}
                   >
-                    {order.status}
-                  </span>
-                  <span className="text-xs font-medium text-[#6E5C50] tabular-nums">
-                    주문번호 {order.orderId}
-                  </span>
-                </div>
-
-                <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
-                  <h2 className="text-base sm:text-lg font-bold text-[#493B32] truncate">
-                    {order.cakeName}
-                  </h2>
-                  <span className="text-xs font-medium text-[#8F6849] shrink-0">
-                    {order.shopName}
-                  </span>
-                </div>
-
-                <dl className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 sm:gap-4 text-xs sm:text-sm text-[#6E5C50]">
-                  <div className="truncate">
-                    <dt className="inline text-[#8F6849] font-medium">주문자: </dt>
-                    <dd className="inline text-[#493B32] font-medium">
-                      {order.customerName || '이전 데모 주문'}
-                      {order.customerEmail ? ` (${order.customerEmail})` : ''}
-                    </dd>
-                  </div>
-                  <div className="tabular-nums">
-                    <dt className="inline text-[#8F6849] font-medium">픽업: </dt>
-                    <dd className="inline text-[#493B32] font-semibold">
-                      {formatKoreanShortDate(order.pickupDate)} ·{' '}
-                      {order.pickupTime}
-                    </dd>
-                  </div>
-                  <div className="tabular-nums">
-                    <dt className="inline text-[#8F6849] font-medium">신청일: </dt>
-                    <dd className="inline">
-                      {formatOrderTimestampDate(order.orderedAt)}
-                    </dd>
-                  </div>
-                </dl>
-
-                {order.status === '판매자 거절' && order.rejectionReason && (
-                  <p className="text-xs text-[#9F4A3B] bg-[#FBF0ED] border border-[#E4B8AF] rounded-xl px-3 py-1.5 leading-relaxed">
-                    거절 사유: {order.rejectionReason}
+                    결제 상태: {paymentStateLabel}
                   </p>
-                )}
-              </div>
 
-              <ChevronRight
-                className="h-5 w-5 text-[#B58C6A] shrink-0"
-                aria-hidden="true"
-              />
-            </button>
-          ))}
+                  {order.status === '판매자 거절' && order.rejectionReason && (
+                    <p className="text-xs text-[#9F4A3B] bg-[#FBF0ED] border border-[#E4B8AF] rounded-xl px-3 py-1.5 leading-relaxed">
+                      거절 사유: {order.rejectionReason}
+                    </p>
+                  )}
+                </div>
+
+                <ChevronRight
+                  className="h-5 w-5 text-[#B58C6A] shrink-0"
+                  aria-hidden="true"
+                />
+              </button>
+            );
+          })}
         </Card>
       )}
 

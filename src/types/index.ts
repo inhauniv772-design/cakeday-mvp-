@@ -39,9 +39,27 @@ export interface CakeShop {
 export type CakeOrderStatus =
   | '판매자 확인 대기'
   | '판매자 승인 완료'
-  | '판매자 거절';
+  | '판매자 거절'
+  | '결제 완료 및 예약 확정';
 
-export type SellerOrderFilter = 'all' | 'pending' | 'approved' | 'rejected';
+export type SellerOrderFilter =
+  | 'all'
+  | 'pending'
+  | 'approved'
+  | 'paid'
+  | 'rejected';
+
+export type PaymentMethod = '신용·체크카드' | '간편결제' | '무통장입금';
+
+export interface CakeOrderPayment {
+  isPaid: boolean;
+  paymentMethod: PaymentMethod;
+  paidAt: string;
+  paidAmount: number;
+  basePrice: number;
+  additionalOptionPrice: number | null;
+  isDemoPayment: true;
+}
 
 export interface CakeOrderOptions {
   cakeSize: string;
@@ -84,6 +102,7 @@ export interface CakeOrder {
   status: CakeOrderStatus;
   rejectionReason?: string;
   reviewedAt?: string;
+  payment?: CakeOrderPayment;
   orderedAt: string;
 }
 

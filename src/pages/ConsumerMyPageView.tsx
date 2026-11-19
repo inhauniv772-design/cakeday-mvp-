@@ -1,13 +1,30 @@
 import React, { useState } from 'react';
-import { ArrowLeftRight, ChevronRight, LogOut, Search, ShoppingBag } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  CheckCircle2,
+  ChevronRight,
+  CreditCard,
+  LogOut,
+  Search,
+  ShoppingBag,
+} from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { MockPaymentModal } from '../components/MockPaymentModal';
 import { OrderDetailModal } from '../components/OrderDetailModal';
+import { formatPriceKRW } from '../data/mockShops';
 import {
   formatOrderTimestampDate,
+  getConsumerOrderStatusLabel,
   getOrderStatusBadgeClass,
 } from '../services/orderStorage';
-import type { AppPage, CakeOrder, UserAccount, UserRole } from '../types';
+import type {
+  AppPage,
+  CakeOrder,
+  PaymentMethod,
+  UserAccount,
+  UserRole,
+} from '../types';
 import { canSwitchModes, formatRolesSummary } from '../utils/auth';
 import { cn } from '../utils/cn';
 import { formatKoreanShortDate } from '../utils/dateUtils';
@@ -19,6 +36,10 @@ interface ConsumerMyPageViewProps {
   onNavigate: (page: AppPage) => void;
   onGoToSearch: () => void;
   onSwitchMode: (mode: UserRole) => boolean;
+  onCompletePayment: (
+    orderId: string,
+    paymentMethod: PaymentMethod
+  ) => { ok: boolean; error?: string; updatedOrder?: CakeOrder };
   onLogout: () => void;
 }
 
@@ -29,12 +50,22 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
   onNavigate,
   onGoToSearch,
   onSwitchMode,
+  onCompletePayment,
   onLogout,
 }) => {
   const isDualRole = canSwitchModes(user);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [paymentOrderId, setPaymentOrderId] = useState<string | null>(null);
+
   const selectedOrder =
     orders.find((order) => order.orderId === selectedOrderId) ?? null;
+  const paymentOrder =
+    orders.find((order) => order.orderId === paymentOrderId) ?? null;
+
+  const handleOpenPayment = (orderId: string) => {
+    setSelectedOrderId(null);
+    setPaymentOrderId(orderId);
+  };
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -130,57 +161,130 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
           </Card>
         ) : (
           <Card className="p-0 sm:p-0 divide-y divide-[#E9DFD0] overflow-hidden">
-            {orders.map((order) => (
-              <button
-                key={order.orderId}
-                type="button"
-                onClick={() => setSelectedOrderId(order.orderId)}
-                className="w-full p-5 sm:p-6 text-left flex items-center justify-between gap-4 hover:bg-[#FAF8F3] transition-colors cursor-pointer"
-              >
-                <div className="min-w-0 space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={cn(
-                        'inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                        getOrderStatusBadgeClass(order.status)
+            {orders.map((order) => {
+              const statusLabel = getConsumerOrderStatusLabel(order);
+              const isPending = order.status === '판매자 확인 대기';
+              const isApprovedAwaitingPayment =
+                order.status === '판매자 승인 완료' && !order.payment?.isPaid;
+              const isRejected = order.status === '판매자 거절';
+              const isPaidConfirmed =
+                order.status === '결제 완료 및 예약 확정' ||
+                Boolean(order.payment?.isPaid);
+
+              return (
+                <div
+                  key={order.orderId}
+                  className="p-5 sm:p-6 space-y-4 hover:bg-[#FAF8F3]/60 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={cn(
+                            'inline-block rounded-lg px-2.5 py-0.5 text-xs font-semibold',
+                            getOrderStatusBadgeClass(order.status)
+                          )}
+                        >
+                          {statusLabel}
+                        </span>
+                        <span className="text-xs text-[#6E5C50] tabular-nums">
+                          신청일 {formatOrderTimestampDate(order.orderedAt)}
+                        </span>
+                      </div>
+
+                      <h3 className="text-base sm:text-lg font-bold text-[#493B32] truncate">
+                        {order.shopName}
+                      </h3>
+
+                      <p className="text-sm font-medium text-[#493B32]">
+                        {order.cakeName}{' '}
+                        <span className="text-xs font-normal text-[#6E5C50]">
+                          ({order.options.cakeSize} · {order.options.cakeFlavor})
+                        </span>
+                      </p>
+
+                      <p className="text-xs sm:text-sm text-[#8F6849] font-medium tabular-nums">
+                        픽업 일정: {formatKoreanShortDate(order.pickupDate)} ·{' '}
+                        {order.pickupTime} · 기본가{' '}
+                        {formatPriceKRW(order.cakePrice)}
+                      </p>
+
+                      {isRejected && order.rejectionReason && (
+                        <p className="text-xs text-[#9F4A3B] bg-[#FBF0ED] border border-[#E4B8AF] rounded-xl px-3 py-1.5 leading-relaxed">
+                          거절 사유: {order.rejectionReason}
+                        </p>
                       )}
-                    >
-                      {order.status}
-                    </span>
-                    <span className="text-xs text-[#6E5C50] tabular-nums">
-                      신청일 {formatOrderTimestampDate(order.orderedAt)}
-                    </span>
+
+                      {isPaidConfirmed && order.payment && (
+                        <p className="text-xs text-[#355E3B] bg-[#EEF4EC] border border-[#BBD0B5] rounded-xl px-3 py-1.5 leading-relaxed tabular-nums">
+                          결제 완료 ({order.payment.paymentMethod} ·{' '}
+                          {formatPriceKRW(order.payment.paidAmount)} ·{' '}
+                          {formatOrderTimestampDate(order.payment.paidAt)})
+                        </p>
+                      )}
+                    </div>
                   </div>
 
-                  <h3 className="text-base sm:text-lg font-bold text-[#493B32] truncate">
-                    {order.shopName}
-                  </h3>
+                  {/* Per-Status Action Row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-[#E9DFD0]/70">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedOrderId(order.orderId)}
+                      className="min-h-[44px] inline-flex items-center justify-center sm:justify-start gap-1.5 text-sm font-medium text-[#6E5C50] hover:text-[#493B32] transition-colors cursor-pointer px-2"
+                    >
+                      <span>
+                        {isPaidConfirmed
+                          ? '결제 · 예약 정보 상세 보기'
+                          : '주문 상세 보기'}
+                      </span>
+                      <ChevronRight
+                        className="h-4 w-4 text-[#B58C6A]"
+                        aria-hidden="true"
+                      />
+                    </button>
 
-                  <p className="text-sm font-medium text-[#493B32]">
-                    {order.cakeName}{' '}
-                    <span className="text-xs font-normal text-[#6E5C50]">
-                      ({order.options.cakeSize} · {order.options.cakeFlavor})
-                    </span>
-                  </p>
+                    {isPending && (
+                      <Button
+                        variant="secondary"
+                        size="md"
+                        disabled
+                        title="판매자 승인 후 결제가 가능합니다."
+                      >
+                        <CreditCard className="h-4 w-4" aria-hidden="true" />
+                        <span>결제하기 (판매자 확인 대기)</span>
+                      </Button>
+                    )}
 
-                  <p className="text-xs sm:text-sm text-[#8F6849] font-medium tabular-nums">
-                    픽업 일정: {formatKoreanShortDate(order.pickupDate)} ·{' '}
-                    {order.pickupTime}
-                  </p>
+                    {isApprovedAwaitingPayment && (
+                      <Button
+                        variant="primary"
+                        size="md"
+                        onClick={() => handleOpenPayment(order.orderId)}
+                      >
+                        <CreditCard className="h-4 w-4" aria-hidden="true" />
+                        <span>결제하기</span>
+                      </Button>
+                    )}
 
-                  {order.status === '판매자 거절' && order.rejectionReason && (
-                    <p className="text-xs text-[#9F4A3B] bg-[#FBF0ED] border border-[#E4B8AF] rounded-xl px-3 py-1.5 leading-relaxed">
-                      거절 사유: {order.rejectionReason}
-                    </p>
-                  )}
+                    {isRejected && (
+                      <Button variant="outline" size="md" disabled>
+                        결제 불가
+                      </Button>
+                    )}
+
+                    {isPaidConfirmed && (
+                      <div className="min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#EEF4EC] border border-[#BBD0B5] px-4 py-2 text-xs sm:text-sm font-semibold text-[#355E3B]">
+                        <CheckCircle2
+                          className="h-4 w-4 shrink-0"
+                          aria-hidden="true"
+                        />
+                        <span>결제 완료 및 예약 확정</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                <ChevronRight
-                  className="h-5 w-5 text-[#B58C6A] shrink-0"
-                  aria-hidden="true"
-                />
-              </button>
-            ))}
+              );
+            })}
           </Card>
         )}
       </div>
@@ -188,6 +292,13 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
       <OrderDetailModal
         order={selectedOrder}
         onClose={() => setSelectedOrderId(null)}
+        onOpenPayment={handleOpenPayment}
+      />
+
+      <MockPaymentModal
+        order={paymentOrder}
+        onClose={() => setPaymentOrderId(null)}
+        onConfirmPayment={onCompletePayment}
       />
     </div>
   );
