@@ -15,8 +15,11 @@ import {
   loadUserOrders,
 } from '../services/orderStorage';
 import {
+  acceptQuoteAsConsumer,
+  completeDemoPaymentForQuote,
   createUserQuoteRequest,
   loadUserQuoteRequests,
+  requestQuoteRevisionAsConsumer,
 } from '../services/quoteRequestStorage';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
@@ -259,6 +262,52 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
     };
   };
 
+  const handleAcceptQuote = (quoteId: string) => {
+    const result = acceptQuoteAsConsumer(quoteId, user.userId);
+    setQuoteRequests(result.quotes);
+    return {
+      ok: result.ok,
+      error: result.error,
+      updatedQuote: result.updatedQuote,
+    };
+  };
+
+  const handleRequestQuoteRevision = (
+    quoteId: string,
+    categories: string[],
+    note: string
+  ) => {
+    const result = requestQuoteRevisionAsConsumer(
+      quoteId,
+      user.userId,
+      categories,
+      note
+    );
+    setQuoteRequests(result.quotes);
+    return {
+      ok: result.ok,
+      error: result.error,
+      updatedQuote: result.updatedQuote,
+    };
+  };
+
+  const handleCompleteQuotePayment = (
+    quoteId: string,
+    paymentMethod: PaymentMethod
+  ) => {
+    const result = completeDemoPaymentForQuote(
+      quoteId,
+      user.userId,
+      paymentMethod
+    );
+    setQuoteRequests(result.quotes);
+    return {
+      ok: result.ok,
+      error: result.error,
+      updatedQuote: result.updatedQuote,
+    };
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-6 pb-24 md:py-10">
       {/* Desktop & Tablet Sub-Navigation */}
@@ -487,6 +536,9 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
           onGoToSearch={() => handleTabSelect('search')}
           onSwitchMode={onSwitchMode}
           onCompletePayment={handleCompletePayment}
+          onAcceptQuote={handleAcceptQuote}
+          onRequestQuoteRevision={handleRequestQuoteRevision}
+          onCompleteQuotePayment={handleCompleteQuotePayment}
           onLogout={onLogout}
         />
       )}

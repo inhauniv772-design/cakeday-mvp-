@@ -1137,7 +1137,7 @@ export const CustomDesignQuoteFormView: React.FC<
               aria-hidden="true"
             />
             <p className="leading-relaxed">
-              견적 요청 제출 시 상태가 &lsquo;판매자 검토 대기&rsquo;로 저장됩니다. 현재 단계에서는 사진 첨부 및 견적 요청 접수까지만 지원되며, 판매자 견적 금액 작성 및 수락·결제는 다음 단계에서 이어집니다.
+              견적 요청 제출 시 상태가 &lsquo;판매자 검토 대기&rsquo;로 저장됩니다. 판매자가 제작 가능 여부와 견적 금액을 보내면 마이페이지에서 견적을 수락하거나 수정을 요청한 뒤 시연용 모의 결제를 진행할 수 있습니다.
             </p>
           </div>
 

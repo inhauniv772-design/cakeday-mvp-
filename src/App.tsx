@@ -140,7 +140,7 @@ export const App: React.FC = () => {
   );
 
   useEffect(() => {
-    const handleHashChange = () => {
+    const handleLocationChange = () => {
       const target = resolveInitialPage(currentUser);
       const requiresAuth =
         target === 'mode-select' || target === 'consumer' || target === 'seller';
@@ -160,8 +160,12 @@ export const App: React.FC = () => {
       }
       setCurrentPage(target);
     };
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    window.addEventListener('popstate', handleLocationChange);
+    return () => {
+      window.removeEventListener('hashchange', handleLocationChange);
+      window.removeEventListener('popstate', handleLocationChange);
+    };
   }, [currentUser]);
 
   const handleLoginSuccess = useCallback(

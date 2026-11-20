@@ -107,7 +107,30 @@ export interface CakeOrder {
   orderedAt: string;
 }
 
-export type QuoteRequestStatus = '판매자 검토 대기';
+export type QuoteRequestStatus =
+  | '판매자 검토 대기'
+  | '제작 불가능'
+  | '조건부 제작 가능'
+  | '견적 도착'
+  | '소비자 수정 요청'
+  | '견적 수정 중'
+  | '견적 재전송'
+  | '견적 수락'
+  | '결제 대기'
+  | '결제 완료'
+  | '예약 확정';
+
+export type QuoteFeasibility = '제작 가능' | '조건부 제작 가능' | '제작 불가능';
+
+export type SellerQuoteFilter =
+  | 'all'
+  | 'pending'
+  | 'responded'
+  | 'revisionRequested'
+  | 'accepted'
+  | 'confirmed'
+  | 'editing'
+  | 'impossible';
 
 export interface QuoteAttachmentImage {
   id: string;
@@ -131,6 +154,68 @@ export interface CustomQuoteRequestFormInput {
   images: QuoteAttachmentImage[];
 }
 
+export interface SellerQuoteResponseInput {
+  feasibility: QuoteFeasibility;
+  finalPrice: string;
+  hasExtraFee: boolean;
+  extraFeeAmount: string;
+  extraFeeReason: string;
+  availableDate: string;
+  availableTime: string;
+  designGuide: string;
+  conditionalNote: string;
+  impossibilityReason: string;
+}
+
+export interface SellerQuoteVersion {
+  version: number;
+  feasibility: QuoteFeasibility;
+  finalPrice?: number;
+  extraFeeAmount?: number;
+  extraFeeReason?: string;
+  availableDate?: string;
+  availableTime?: string;
+  designGuide?: string;
+  conditionalNote?: string;
+  impossibilityReason?: string;
+  respondedAt: string;
+  statusAtSend: QuoteRequestStatus;
+}
+
+export interface ConsumerRevisionRequest {
+  id: string;
+  targetQuoteVersion: number;
+  categories: string[];
+  note: string;
+  requestedAt: string;
+}
+
+export interface AcceptedQuoteSnapshot {
+  version: number;
+  feasibility: QuoteFeasibility;
+  finalPrice: number;
+  extraFeeAmount?: number;
+  extraFeeReason?: string;
+  availableDate: string;
+  availableTime: string;
+  designGuide?: string;
+  conditionalNote?: string;
+  acceptedAt: string;
+}
+
+export interface CustomQuotePayment {
+  isPaid: true;
+  quoteId: string;
+  acceptedVersion: number;
+  paidAmount: number;
+  paymentMethod: PaymentMethod;
+  paidAt: string;
+  confirmedAt: string;
+  pickupDate: string;
+  pickupTime: string;
+  isDemoPayment: true;
+}
+
 export interface CustomQuoteRequest {
   quoteId: string;
   userId: string;
@@ -150,6 +235,13 @@ export interface CustomQuoteRequest {
   designDescription: string;
   additionalRequests: string;
   status: QuoteRequestStatus;
+  latestQuote?: SellerQuoteVersion;
+  quoteHistory?: SellerQuoteVersion[];
+  revisionRequests?: ConsumerRevisionRequest[];
+  acceptedQuote?: AcceptedQuoteSnapshot;
+  payment?: CustomQuotePayment;
+  updatedAt?: string;
+  isAcceptedByConsumer?: boolean;
   createdAt: string;
   isDemoSeed?: boolean;
 }

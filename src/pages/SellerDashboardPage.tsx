@@ -22,12 +22,25 @@ import {
   loadOrdersForSellerShops,
   rejectOrderAsSeller,
 } from '../services/orderStorage';
-import { loadQuoteRequestsForSellerShops } from '../services/quoteRequestStorage';
+import {
+  cancelSellerQuoteEditing,
+  filterSellerQuotes,
+  getQuoteFeasibilityBadgeClass,
+  getQuoteStatusBadgeClass,
+  getSellerQuoteCounts,
+  isQuoteAwaitingPayment,
+  isQuoteReservationConfirmed,
+  loadQuoteRequestsForSellerShops,
+  startSellerQuoteEditing,
+  submitSellerQuoteResponse,
+} from '../services/quoteRequestStorage';
 import type {
   AppPage,
   CakeOrder,
   CustomQuoteRequest,
   SellerOrderFilter,
+  SellerQuoteFilter,
+  SellerQuoteResponseInput,
   UserAccount,
   UserRole,
 } from '../types';
@@ -50,6 +63,17 @@ const FILTER_OPTIONS: Array<{ id: SellerOrderFilter; label: string }> = [
   { id: 'rejected', label: '거절' },
 ];
 
+const QUOTE_FILTER_OPTIONS: Array<{ id: SellerQuoteFilter; label: string }> = [
+  { id: 'all', label: '전체 요청' },
+  { id: 'pending', label: '검토 대기' },
+  { id: 'responded', label: '견적 전달' },
+  { id: 'revisionRequested', label: '수정 요청' },
+  { id: 'accepted', label: '수락·결제 대기' },
+  { id: 'confirmed', label: '예약 확정' },
+  { id: 'editing', label: '수정 중' },
+  { id: 'impossible', label: '제작 불가능' },
+];
+
 export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
   user,
   onNavigate,
@@ -70,6 +94,8 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
     loadQuoteRequestsForSellerShops(ownedShopIds)
   );
   const [statusFilter, setStatusFilter] = useState<SellerOrderFilter>('all');
+  const [quoteStatusFilter, setQuoteStatusFilter] =
+    useState<SellerQuoteFilter>('all');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [decisionNotice, setDecisionNotice] = useState<string | null>(null);
@@ -86,6 +112,15 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
   const filteredOrders = useMemo(
     () => filterSellerOrders(orders, statusFilter),
     [orders, statusFilter]
+  );
+
+  const quoteCounts = useMemo(
+    () => getSellerQuoteCounts(quoteRequests),
+    [quoteRequests]
+  );
+  const filteredQuotes = useMemo(
+    () => filterSellerQuotes(quoteRequests, quoteStatusFilter),
+    [quoteRequests, quoteStatusFilter]
   );
 
   const selectedOrder =
@@ -115,6 +150,54 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
       );
     }
     return { ok: result.ok, error: result.error };
+  };
+
+  const handleSubmitQuoteResponse = (
+    quoteId: string,
+    input: SellerQuoteResponseInput
+  ) => {
+    const result = submitSellerQuoteResponse(quoteId, ownedShopIds, input);
+    setQuoteRequests(result.quotes);
+    if (result.ok && result.updatedQuote) {
+      setDecisionNotice(
+        `견적 요청(${quoteId})에 '${result.updatedQuote.status}' 상태로 답변을 저장했습니다.`
+      );
+    }
+    return {
+      ok: result.ok,
+      error: result.error,
+      updatedQuote: result.updatedQuote,
+    };
+  };
+
+  const handleStartEditingQuote = (quoteId: string) => {
+    const result = startSellerQuoteEditing(quoteId, ownedShopIds);
+    setQuoteRequests(result.quotes);
+    if (result.ok) {
+      setDecisionNotice(
+        `견적(${quoteId})이 '견적 수정 중' 상태로 전환되었습니다. 수정 후 재전송을 눌러 주세요.`
+      );
+    }
+    return {
+      ok: result.ok,
+      error: result.error,
+      updatedQuote: result.updatedQuote,
+    };
+  };
+
+  const handleCancelEditingQuote = (quoteId: string) => {
+    const result = cancelSellerQuoteEditing(quoteId, ownedShopIds);
+    setQuoteRequests(result.quotes);
+    if (result.ok && result.updatedQuote) {
+      setDecisionNotice(
+        `견적(${quoteId}) 수정을 취소하고 기존 '${result.updatedQuote.status}' 상태로 되돌렸습니다.`
+      );
+    }
+    return {
+      ok: result.ok,
+      error: result.error,
+      updatedQuote: result.updatedQuote,
+    };
   };
 
   return (
@@ -230,7 +313,7 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
       </div>
 
       {/* Decision Feedback Toast / Banner */}
-      {sellerTab === 'orders' && decisionNotice && (
+      {decisionNotice && (
         <div
           role="status"
           className="flex items-center justify-between gap-3 rounded-2xl border border-[#B58C6A]/50 bg-[#FFFFFF] px-4 py-3 text-xs sm:text-sm text-[#493B32]"
@@ -419,86 +502,257 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
 
       {sellerTab === 'quotes' && (
         <div className="space-y-4">
-          {quoteRequests.length === 0 ? (
+          {/* Quote Status Filter Tabs */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div
+              role="tablist"
+              aria-label="맞춤 견적 상태별 필터"
+              className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0"
+            >
+              {QUOTE_FILTER_OPTIONS.map(({ id, label }) => {
+                const isActive = quoteStatusFilter === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setQuoteStatusFilter(id)}
+                    className={cn(
+                      'min-h-[44px] px-4 py-2 rounded-2xl text-sm font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 border transition-colors cursor-pointer',
+                      isActive
+                        ? 'bg-[#8F6849] text-[#FFFFFF] border-[#8F6849]'
+                        : 'bg-[#FFFFFF] text-[#493B32] border-[#E9DFD0] hover:border-[#B58C6A]'
+                    )}
+                  >
+                    <span>{label}</span>
+                    <span
+                      className={cn(
+                        'text-xs tabular-nums font-semibold',
+                        isActive ? 'text-[#FAF8F3]' : 'text-[#8F6849]'
+                      )}
+                    >
+                      {quoteCounts[id]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="text-xs text-[#6E5C50] tabular-nums">
+              표시 중 {filteredQuotes.length}건
+            </p>
+          </div>
+
+          {filteredQuotes.length === 0 ? (
             <Card className="py-12 text-center space-y-3">
               <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E9DFD0] text-[#8F6849]">
                 <ImagePlus className="h-6 w-6" aria-hidden="true" />
               </div>
               <h2 className="text-lg font-bold text-[#493B32]">
-                아직 매장에 접수된 맞춤 디자인 견적 요청이 없습니다.
+                {quoteRequests.length === 0
+                  ? '아직 매장에 접수된 맞춤 디자인 견적 요청이 없습니다.'
+                  : '선택한 상태에 해당하는 견적 요청이 없습니다.'}
               </h2>
               <p className="text-sm text-[#6E5C50] max-w-md mx-auto leading-relaxed">
-                소비자가 운영 중인 매장에 디자인 참고 사진과 제작 사양을 담아 견적을 요청하면 이곳에 표시됩니다.
+                {quoteRequests.length === 0
+                  ? '소비자가 운영 중인 매장에 디자인 참고 사진과 제작 사양을 담아 견적을 요청하면 이곳에 표시됩니다.'
+                  : '다른 상태 탭을 선택해 맞춤 디자인 견적 요청을 확인해 보세요.'}
               </p>
             </Card>
           ) : (
             <Card className="p-0 sm:p-0 divide-y divide-[#E9DFD0] overflow-hidden">
-              {quoteRequests.map((quote) => (
-                <button
-                  key={quote.quoteId}
-                  type="button"
-                  onClick={() => setSelectedQuoteId(quote.quoteId)}
-                  className="w-full p-5 sm:p-6 text-left flex items-center justify-between gap-4 hover:bg-[#FAF8F3] transition-colors cursor-pointer"
-                >
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-block rounded-lg bg-[#E9DFD0] border border-[#D8C9B5] px-2.5 py-0.5 text-xs font-semibold text-[#493B32]">
-                        {quote.status}
-                      </span>
-                      <span className="text-xs font-medium text-[#6E5C50] tabular-nums">
-                        요청번호 {quote.quoteId}
-                      </span>
+              {filteredQuotes.map((quote) => {
+                const latest = quote.latestQuote;
+                const historyCount = quote.quoteHistory?.length ?? 0;
+                const awaitingPayment = isQuoteAwaitingPayment(quote);
+                const reservationConfirmed = isQuoteReservationConfirmed(quote);
+                const latestRevision = quote.revisionRequests?.[0];
+
+                return (
+                  <button
+                    key={quote.quoteId}
+                    type="button"
+                    onClick={() => setSelectedQuoteId(quote.quoteId)}
+                    className="w-full p-5 sm:p-6 text-left flex items-center justify-between gap-4 hover:bg-[#FAF8F3] transition-colors cursor-pointer"
+                  >
+                    <div className="min-w-0 flex-1 flex items-start gap-4">
+                      {quote.images[0] && (
+                        <div className="hidden sm:block h-20 w-20 rounded-2xl border border-[#E9DFD0] bg-[#FAF8F3] overflow-hidden shrink-0">
+                          <img
+                            src={quote.images[0].dataUrl}
+                            alt={`${quote.customerName}님 커스텀 케이크 사진`}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      )}
+
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={cn(
+                              'inline-block rounded-lg px-2.5 py-0.5 text-xs font-semibold',
+                              getQuoteStatusBadgeClass(quote.status)
+                            )}
+                          >
+                            {quote.status}
+                          </span>
+                          {awaitingPayment && (
+                            <span
+                              className={cn(
+                                'inline-block rounded-lg px-2.5 py-0.5 text-xs font-semibold',
+                                getQuoteStatusBadgeClass('결제 대기')
+                              )}
+                            >
+                              결제 대기
+                            </span>
+                          )}
+                          {reservationConfirmed && (
+                            <span
+                              className={cn(
+                                'inline-block rounded-lg px-2.5 py-0.5 text-xs font-semibold',
+                                getQuoteStatusBadgeClass('결제 완료')
+                              )}
+                            >
+                              결제 완료
+                            </span>
+                          )}
+                          {latest && (
+                            <span
+                              className={cn(
+                                'inline-block rounded-lg px-2.5 py-0.5 text-xs font-semibold',
+                                getQuoteFeasibilityBadgeClass(latest.feasibility)
+                              )}
+                            >
+                              {latest.feasibility}
+                            </span>
+                          )}
+                          {latest && (
+                            <span className="text-xs font-medium text-[#8F6849] tabular-nums">
+                              최신 v{latest.version}
+                              {historyCount > 0
+                                ? ` (이전 이력 ${historyCount}건)`
+                                : ''}
+                            </span>
+                          )}
+                          <span className="text-xs font-medium text-[#6E5C50] tabular-nums">
+                            요청번호 {quote.quoteId}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+                          <h2 className="text-base sm:text-lg font-bold text-[#493B32] truncate">
+                            {quote.cakeSize} · {quote.cakeShape} ·{' '}
+                            {quote.cakeFlavor}
+                          </h2>
+                          <span className="text-xs font-medium text-[#8F6849] shrink-0">
+                            {quote.shopName}
+                          </span>
+                        </div>
+
+                        <dl className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 sm:gap-4 text-xs sm:text-sm text-[#6E5C50]">
+                          <div className="truncate">
+                            <dt className="inline text-[#8F6849] font-medium">
+                              요청자:{' '}
+                            </dt>
+                            <dd className="inline text-[#493B32] font-medium">
+                              {quote.customerName} ({quote.customerEmail})
+                            </dd>
+                          </div>
+                          <div className="tabular-nums">
+                            <dt className="inline text-[#8F6849] font-medium">
+                              {quote.acceptedQuote
+                                ? '수령 예정: '
+                                : '희망 수령: '}
+                            </dt>
+                            <dd className="inline text-[#493B32] font-semibold">
+                              {formatKoreanShortDate(
+                                quote.payment?.pickupDate ??
+                                  quote.acceptedQuote?.availableDate ??
+                                  quote.desiredPickupDate
+                              )}{' '}
+                              ·{' '}
+                              {quote.payment?.pickupTime ??
+                                quote.acceptedQuote?.availableTime ??
+                                quote.desiredPickupTime}
+                            </dd>
+                          </div>
+                          <div className="tabular-nums">
+                            <dt className="inline text-[#8F6849] font-medium">
+                              접수일:{' '}
+                            </dt>
+                            <dd className="inline">
+                              {formatOrderTimestampDate(quote.createdAt)}
+                            </dd>
+                          </div>
+                        </dl>
+
+                        <p className="text-xs font-medium text-[#8F6849] tabular-nums">
+                          첨부 참고 사진 {quote.images.length}장 · 레터링 &ldquo;
+                          {quote.letteringText}&rdquo;
+                        </p>
+
+                        {quote.status === '소비자 수정 요청' &&
+                          latestRevision && (
+                            <div className="rounded-xl bg-[#FDF4E6] border border-[#DFB985] px-3 py-2 text-xs text-[#9A5B1A] leading-relaxed">
+                              <strong>소비자 수정 요청:</strong> [
+                              {latestRevision.categories.join(', ')}]{' '}
+                              {latestRevision.note}
+                            </div>
+                          )}
+
+                        {quote.acceptedQuote ? (
+                          <div
+                            className={cn(
+                              'rounded-xl border px-3 py-2 text-xs tabular-nums flex flex-wrap items-center justify-between gap-2',
+                              reservationConfirmed
+                                ? 'bg-[#EEF4EC] border-[#BBD0B5] text-[#355E3B]'
+                                : 'bg-[#F5EBD9]/70 border-[#C9A882] text-[#6B4A2D]'
+                            )}
+                          >
+                            <span>
+                              최종 확정 견적(v{quote.acceptedQuote.version}):{' '}
+                              <strong>
+                                {formatPriceKRW(quote.acceptedQuote.finalPrice)}
+                              </strong>
+                            </span>
+                            <span className="font-semibold">
+                              {reservationConfirmed && quote.payment
+                                ? `결제 완료 (${quote.payment.paymentMethod}) · 예약 확정`
+                                : '미결제 (소비자 결제 대기) · 예약 확정 전'}
+                            </span>
+                          </div>
+                        ) : (
+                          latest && (
+                            <div className="rounded-xl bg-[#FAF8F3] border border-[#E9DFD0] px-3 py-2 text-xs text-[#493B32] tabular-nums">
+                              {latest.feasibility === '제작 불가능' ? (
+                                <span className="text-[#9F4A3B]">
+                                  제작 불가 사유: {latest.impossibilityReason}
+                                </span>
+                              ) : (
+                                <span>
+                                  제시 견적:{' '}
+                                  <strong>
+                                    {formatPriceKRW(latest.finalPrice ?? 0)}
+                                  </strong>
+                                  {latest.availableDate
+                                    ? ` · 수령 가능: ${formatKoreanShortDate(latest.availableDate)} ${latest.availableTime}`
+                                    : ''}
+                                </span>
+                              )}
+                            </div>
+                          )
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
-                      <h2 className="text-base sm:text-lg font-bold text-[#493B32] truncate">
-                        {quote.cakeSize} · {quote.cakeShape} · {quote.cakeFlavor}
-                      </h2>
-                      <span className="text-xs font-medium text-[#8F6849] shrink-0">
-                        {quote.shopName}
-                      </span>
-                    </div>
-
-                    <dl className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 sm:gap-4 text-xs sm:text-sm text-[#6E5C50]">
-                      <div className="truncate">
-                        <dt className="inline text-[#8F6849] font-medium">
-                          요청자:{' '}
-                        </dt>
-                        <dd className="inline text-[#493B32] font-medium">
-                          {quote.customerName} ({quote.customerEmail})
-                        </dd>
-                      </div>
-                      <div className="tabular-nums">
-                        <dt className="inline text-[#8F6849] font-medium">
-                          희망 수령:{' '}
-                        </dt>
-                        <dd className="inline text-[#493B32] font-semibold">
-                          {formatKoreanShortDate(quote.desiredPickupDate)} ·{' '}
-                          {quote.desiredPickupTime}
-                        </dd>
-                      </div>
-                      <div className="tabular-nums">
-                        <dt className="inline text-[#8F6849] font-medium">
-                          접수일:{' '}
-                        </dt>
-                        <dd className="inline">
-                          {formatOrderTimestampDate(quote.createdAt)}
-                        </dd>
-                      </div>
-                    </dl>
-
-                    <p className="text-xs font-medium text-[#8F6849] tabular-nums">
-                      첨부 참고 사진 {quote.images.length}장 · 레터링 &ldquo;
-                      {quote.letteringText}&rdquo;
-                    </p>
-                  </div>
-
-                  <ChevronRight
-                    className="h-5 w-5 text-[#B58C6A] shrink-0"
-                    aria-hidden="true"
-                  />
-                </button>
-              ))}
+                    <ChevronRight
+                      className="h-5 w-5 text-[#B58C6A] shrink-0"
+                      aria-hidden="true"
+                    />
+                  </button>
+                );
+              })}
             </Card>
           )}
         </div>
@@ -511,7 +765,7 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
           aria-hidden="true"
         />
         <p className="leading-relaxed">
-          판매자 모드에서는 현재 계정이 운영하는 매장({ownedShops.map((s) => s.shopName).join(', ') || '없음'})에 접수된 일반 주문과 맞춤 디자인 견적 요청만 조회할 수 있습니다. 견적 금액 작성 및 답변 전송 기능은 다음 단계에서 추가될 예정입니다.
+          판매자 모드에서는 현재 계정이 운영하는 매장({ownedShops.map((s) => s.shopName).join(', ') || '없음'})에 접수된 일반 주문과 맞춤 디자인 견적 요청만 조회·응답할 수 있습니다. 견적을 수정해 재전송하면 이전 버전은 이력으로 보존됩니다.
         </p>
       </div>
 
@@ -608,11 +862,14 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
         onReject={handleRejectOrder}
       />
 
-      {/* Seller Custom Quote Request Detail Modal (Read-only in Stage 9) */}
+      {/* Seller Custom Quote Request Detail & Response Modal */}
       <SellerQuoteDetailModal
         quote={selectedQuote}
         isMissingQuote={selectedQuoteId !== null && !selectedQuote}
         onClose={() => setSelectedQuoteId(null)}
+        onSubmitQuoteResponse={handleSubmitQuoteResponse}
+        onStartEditingQuote={handleStartEditingQuote}
+        onCancelEditingQuote={handleCancelEditingQuote}
       />
     </div>
   );

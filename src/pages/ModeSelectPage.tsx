@@ -199,7 +199,7 @@ export const ModeSelectPage: React.FC<ModeSelectPageProps> = ({
                 시연용 테스트 데이터 관리
               </h2>
               <p className="text-xs sm:text-sm text-[#6E5C50] leading-relaxed">
-                발표 시연을 반복할 때 데모 프리셋 계정의 기념일·주문 상태(확인 대기 / 승인 완료 / 거절 / 결제 완료)만 초기 상태로 안전하게 복원할 수 있습니다.
+                발표 시연을 반복할 때 데모 프리셋 계정의 기념일·일반 주문 상태(확인 대기 / 승인 완료 / 거절 / 결제 완료)·커스텀 디자인 견적 요청 데이터만 초기 상태로 안전하게 복원할 수 있습니다.
               </p>
             </div>
 
@@ -231,7 +231,7 @@ export const ModeSelectPage: React.FC<ModeSelectPageProps> = ({
           {isConfirmingReset && (
             <div className="rounded-2xl border border-[#D6B89C] bg-[#FFFFFF] p-4 space-y-3">
               <p className="text-xs sm:text-sm font-medium text-[#493B32] leading-relaxed">
-                데모 프리셋 계정의 기념일 및 주문 내역만 초기 시연 데이터로 복원합니다. 회원가입으로 생성한 계정의 데이터는 삭제되지 않습니다. 계속할까요?
+                데모 프리셋 계정의 기념일, 일반 주문 및 커스텀 디자인 견적 요청 내역만 초기 시연 데이터로 복원합니다. 회원가입으로 생성한 계정의 데이터는 삭제되지 않습니다. 계속할까요?
               </p>
               <div className="flex flex-wrap items-center gap-2.5">
                 <Button

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ArrowLeftRight,
+  CalendarCheck2,
   CheckCircle2,
   ChevronRight,
   CreditCard,
@@ -13,6 +14,7 @@ import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { MockPaymentModal } from '../components/MockPaymentModal';
 import { OrderDetailModal } from '../components/OrderDetailModal';
+import { QuoteMockPaymentModal } from '../components/QuoteMockPaymentModal';
 import { QuoteRequestDetailModal } from '../components/QuoteRequestDetailModal';
 import { formatPriceKRW } from '../data/mockShops';
 import {
@@ -20,6 +22,13 @@ import {
   getConsumerOrderStatusLabel,
   getOrderStatusBadgeClass,
 } from '../services/orderStorage';
+import {
+  canConsumerRespondToQuote,
+  getQuoteFeasibilityBadgeClass,
+  getQuoteStatusBadgeClass,
+  isQuoteAwaitingPayment,
+  isQuoteReservationConfirmed,
+} from '../services/quoteRequestStorage';
 import type {
   AppPage,
   CakeOrder,
@@ -44,6 +53,28 @@ interface ConsumerMyPageViewProps {
     orderId: string,
     paymentMethod: PaymentMethod
   ) => { ok: boolean; error?: string; updatedOrder?: CakeOrder };
+  onAcceptQuote: (quoteId: string) => {
+    ok: boolean;
+    error?: string;
+    updatedQuote?: CustomQuoteRequest;
+  };
+  onRequestQuoteRevision: (
+    quoteId: string,
+    categories: string[],
+    note: string
+  ) => {
+    ok: boolean;
+    error?: string;
+    updatedQuote?: CustomQuoteRequest;
+  };
+  onCompleteQuotePayment: (
+    quoteId: string,
+    paymentMethod: PaymentMethod
+  ) => {
+    ok: boolean;
+    error?: string;
+    updatedQuote?: CustomQuoteRequest;
+  };
   onLogout: () => void;
 }
 
@@ -56,12 +87,16 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
   onGoToSearch,
   onSwitchMode,
   onCompletePayment,
+  onAcceptQuote,
+  onRequestQuoteRevision,
+  onCompleteQuotePayment,
   onLogout,
 }) => {
   const isDualRole = canSwitchModes(user);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [paymentOrderId, setPaymentOrderId] = useState<string | null>(null);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
+  const [paymentQuoteId, setPaymentQuoteId] = useState<string | null>(null);
 
   const selectedOrder =
     orders.find((order) => order.orderId === selectedOrderId) ?? null;
@@ -69,10 +104,21 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
     orders.find((order) => order.orderId === paymentOrderId) ?? null;
   const selectedQuote =
     quoteRequests.find((quote) => quote.quoteId === selectedQuoteId) ?? null;
+  const paymentQuote =
+    quoteRequests.find((quote) => quote.quoteId === paymentQuoteId) ?? null;
+
+  const confirmedCustomReservations = quoteRequests.filter((quote) =>
+    isQuoteReservationConfirmed(quote)
+  );
 
   const handleOpenPayment = (orderId: string) => {
     setSelectedOrderId(null);
     setPaymentOrderId(orderId);
+  };
+
+  const handleOpenQuotePayment = (quoteId: string) => {
+    setSelectedQuoteId(null);
+    setPaymentQuoteId(quoteId);
   };
 
   return (
@@ -141,12 +187,128 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
         </Card>
       </div>
 
-      {/* Order History Section */}
+      {/* Confirmed Custom Design Reservations Summary (Separate from Regular Orders) */}
+      {confirmedCustomReservations.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <CalendarCheck2
+                className="h-5 w-5 text-[#355E3B]"
+                aria-hidden="true"
+              />
+              <h2 className="text-xl font-bold text-[#493B32]">
+                커스텀 디자인 예약 확정 내역
+              </h2>
+            </div>
+            <span className="text-xs sm:text-sm font-semibold text-[#355E3B] tabular-nums">
+              확정 {confirmedCustomReservations.length}건
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {confirmedCustomReservations.map((quote) => {
+              const payment = quote.payment;
+              if (!payment) return null;
+              return (
+                <Card
+                  key={`confirmed-${quote.quoteId}`}
+                  className="border-[#BBD0B5] bg-[#EEF4EC]/45 space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={cn(
+                            'inline-block rounded-lg px-2.5 py-0.5 text-xs font-semibold',
+                            getQuoteStatusBadgeClass('예약 확정')
+                          )}
+                        >
+                          예약 확정
+                        </span>
+                        <span
+                          className={cn(
+                            'inline-block rounded-lg px-2.5 py-0.5 text-xs font-semibold',
+                            getQuoteStatusBadgeClass('결제 완료')
+                          )}
+                        >
+                          결제 완료
+                        </span>
+                        <span className="text-xs font-medium text-[#6E5C50] tabular-nums">
+                          수락 견적 v{payment.acceptedVersion}
+                        </span>
+                      </div>
+
+                      <h3 className="text-base sm:text-lg font-bold text-[#493B32] truncate">
+                        {quote.shopName}{' '}
+                        <span className="text-xs font-normal text-[#6E5C50]">
+                          ({quote.shopRegionText})
+                        </span>
+                      </h3>
+
+                      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs sm:text-sm text-[#493B32]">
+                        <div>
+                          <dt className="inline text-[#6E5C50]">
+                            최종 견적 금액:{' '}
+                          </dt>
+                          <dd className="inline font-bold text-[#355E3B] tabular-nums">
+                            {formatPriceKRW(payment.paidAmount)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="inline text-[#6E5C50]">결제 방식: </dt>
+                          <dd className="inline font-semibold">
+                            {payment.paymentMethod}
+                          </dd>
+                        </div>
+                        <div className="sm:col-span-2 tabular-nums">
+                          <dt className="inline text-[#6E5C50]">
+                            수령 날짜 및 시간:{' '}
+                          </dt>
+                          <dd className="inline font-semibold text-[#493B32]">
+                            {formatKoreanShortDate(payment.pickupDate)} ·{' '}
+                            {payment.pickupTime}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+
+                    {quote.images[0] && (
+                      <div className="h-20 w-20 rounded-2xl border border-[#BBD0B5] bg-[#FFFFFF] overflow-hidden shrink-0">
+                        <img
+                          src={quote.images[0].dataUrl}
+                          alt={`${quote.shopName} 확정 커스텀 케이크 사진`}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-[#BBD0B5]/70 flex items-center justify-between gap-3">
+                    <span className="text-xs text-[#355E3B] tabular-nums">
+                      예약 확정일: {formatOrderTimestampDate(payment.confirmedAt)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedQuoteId(quote.quoteId)}
+                      className="min-h-[40px] inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#355E3B] hover:text-[#234128] cursor-pointer"
+                    >
+                      <span>예약 상세 보기</span>
+                      <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Regular Order History Section (Separate from Custom Design Quotes/Reservations) */}
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <ShoppingBag className="h-5 w-5 text-[#B58C6A]" aria-hidden="true" />
-            <h2 className="text-xl font-bold text-[#493B32]">주문 내역</h2>
+            <h2 className="text-xl font-bold text-[#493B32]">일반 주문 내역</h2>
           </div>
           <span className="text-xs sm:text-sm text-[#6E5C50] tabular-nums">
             총 {orders.length}건
@@ -329,66 +491,206 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
           </Card>
         ) : (
           <Card className="p-0 sm:p-0 divide-y divide-[#E9DFD0] overflow-hidden">
-            {quoteRequests.map((quote) => (
-              <div
-                key={quote.quoteId}
-                className="p-5 sm:p-6 space-y-3.5 hover:bg-[#FAF8F3]/60 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-block rounded-lg bg-[#E9DFD0] border border-[#D8C9B5] px-2.5 py-0.5 text-xs font-semibold text-[#493B32]">
-                        {quote.status}
-                      </span>
-                      <span className="text-xs text-[#6E5C50] tabular-nums">
-                        요청일 {formatOrderTimestampDate(quote.createdAt)}
-                      </span>
+            {quoteRequests.map((quote) => {
+              const latest = quote.latestQuote;
+              const historyCount = quote.quoteHistory?.length ?? 0;
+              const awaitingPayment = isQuoteAwaitingPayment(quote);
+              const reservationConfirmed = isQuoteReservationConfirmed(quote);
+              const canRespond = canConsumerRespondToQuote(quote);
+
+              return (
+                <div
+                  key={quote.quoteId}
+                  className="p-5 sm:p-6 space-y-3.5 hover:bg-[#FAF8F3]/60 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={cn(
+                            'inline-block rounded-lg px-2.5 py-0.5 text-xs font-semibold',
+                            getQuoteStatusBadgeClass(quote.status)
+                          )}
+                        >
+                          {quote.status}
+                        </span>
+                        {awaitingPayment && (
+                          <span
+                            className={cn(
+                              'inline-block rounded-lg px-2.5 py-0.5 text-xs font-semibold',
+                              getQuoteStatusBadgeClass('결제 대기')
+                            )}
+                          >
+                            결제 대기
+                          </span>
+                        )}
+                        {reservationConfirmed && (
+                          <span
+                            className={cn(
+                              'inline-block rounded-lg px-2.5 py-0.5 text-xs font-semibold',
+                              getQuoteStatusBadgeClass('결제 완료')
+                            )}
+                          >
+                            결제 완료
+                          </span>
+                        )}
+                        {latest && (
+                          <span
+                            className={cn(
+                              'inline-block rounded-lg px-2.5 py-0.5 text-xs font-semibold',
+                              getQuoteFeasibilityBadgeClass(latest.feasibility)
+                            )}
+                          >
+                            {latest.feasibility}
+                          </span>
+                        )}
+                        {latest && (
+                          <span className="text-xs font-medium text-[#8F6849] tabular-nums">
+                            최신 v{latest.version}
+                            {historyCount > 0 ? ` · 이전 이력 ${historyCount}건` : ''}
+                          </span>
+                        )}
+                        <span className="text-xs text-[#6E5C50] tabular-nums">
+                          요청일 {formatOrderTimestampDate(quote.createdAt)}
+                        </span>
+                      </div>
+
+                      <h3 className="text-base sm:text-lg font-bold text-[#493B32] truncate">
+                        {quote.shopName}
+                      </h3>
+
+                      <p className="text-xs sm:text-sm text-[#8F6849] font-medium tabular-nums">
+                        희망 수령일: {formatKoreanShortDate(quote.desiredPickupDate)} ·{' '}
+                        {quote.desiredPickupTime} · 첨부 사진 {quote.images.length}장
+                      </p>
+
+                      <p className="text-xs sm:text-sm text-[#6E5C50] line-clamp-2 leading-relaxed">
+                        {quote.cakeSize} · {quote.cakeShape} · {quote.cakeFlavor} · &ldquo;
+                        {quote.letteringText}&rdquo;
+                      </p>
+
+                      {latest && (
+                        <div className="rounded-xl bg-[#FAF8F3] border border-[#E9DFD0] px-3.5 py-2.5 text-xs space-y-1">
+                          {latest.feasibility === '제작 불가능' ? (
+                            <p className="text-[#9F4A3B] leading-relaxed">
+                              <strong>제작 불가 사유:</strong>{' '}
+                              {latest.impossibilityReason}
+                            </p>
+                          ) : (
+                            <>
+                              <p className="font-semibold text-[#493B32] tabular-nums">
+                                {quote.acceptedQuote
+                                  ? `확정 견적 금액(v${quote.acceptedQuote.version}): `
+                                  : '최종 견적 금액: '}
+                                <span className="text-[#8F6849]">
+                                  {formatPriceKRW(
+                                    quote.acceptedQuote?.finalPrice ??
+                                      latest.finalPrice ??
+                                      0
+                                  )}
+                                </span>
+                                {(quote.acceptedQuote?.availableDate ??
+                                  latest.availableDate)
+                                  ? ` · 수령 가능: ${formatKoreanShortDate(
+                                      quote.acceptedQuote?.availableDate ??
+                                        latest.availableDate ??
+                                        quote.desiredPickupDate
+                                    )} ${
+                                      quote.acceptedQuote?.availableTime ??
+                                      latest.availableTime
+                                    }`
+                                  : ''}
+                              </p>
+                              {latest.extraFeeReason && (
+                                <p className="text-[#6E5C50]">
+                                  추가 비용 사유: {latest.extraFeeReason}
+                                </p>
+                              )}
+                              {latest.feasibility === '조건부 제작 가능' &&
+                                latest.conditionalNote && (
+                                  <p className="text-[#8F6849] line-clamp-2">
+                                    제작 조건: {latest.conditionalNote}
+                                  </p>
+                                )}
+                              {latest.respondedAt && (
+                                <p className="text-[11px] text-[#6E5C50] tabular-nums">
+                                  견적 작성 일시:{' '}
+                                  {formatOrderTimestampDate(latest.respondedAt)}
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    <h3 className="text-base sm:text-lg font-bold text-[#493B32] truncate">
-                      {quote.shopName}
-                    </h3>
-
-                    <p className="text-xs sm:text-sm text-[#8F6849] font-medium tabular-nums">
-                      희망 수령일: {formatKoreanShortDate(quote.desiredPickupDate)} ·{' '}
-                      {quote.desiredPickupTime} · 첨부 사진 {quote.images.length}장
-                    </p>
-
-                    <p className="text-xs sm:text-sm text-[#6E5C50] line-clamp-2 leading-relaxed">
-                      {quote.cakeSize} · {quote.cakeShape} · {quote.cakeFlavor} · &ldquo;
-                      {quote.letteringText}&rdquo;
-                    </p>
+                    {quote.images[0] && (
+                      <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl border border-[#E9DFD0] bg-[#FAF8F3] overflow-hidden shrink-0">
+                        <img
+                          src={quote.images[0].dataUrl}
+                          alt={`${quote.shopName} 견적 참고 이미지`}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  {quote.images[0] && (
-                    <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl border border-[#E9DFD0] bg-[#FAF8F3] overflow-hidden shrink-0">
-                      <img
-                        src={quote.images[0].dataUrl}
-                        alt={`${quote.shopName} 견적 참고 이미지`}
-                        className="h-full w-full object-cover"
+                  <div className="pt-2 border-t border-[#E9DFD0]/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedQuoteId(quote.quoteId)}
+                      className="min-h-[44px] inline-flex items-center justify-center sm:justify-start gap-1.5 text-sm font-medium text-[#6E5C50] hover:text-[#493B32] transition-colors cursor-pointer px-2 shrink-0"
+                    >
+                      <span>
+                        {canRespond
+                          ? '견적 확인 · 수락 또는 수정 요청'
+                          : latest
+                            ? '견적·요청 상세 보기'
+                            : '요청 상세 보기'}
+                      </span>
+                      <ChevronRight
+                        className="h-4 w-4 text-[#B58C6A]"
+                        aria-hidden="true"
                       />
-                    </div>
-                  )}
-                </div>
+                    </button>
 
-                <div className="pt-2 border-t border-[#E9DFD0]/70 flex items-center justify-between gap-3">
-                  <span className="text-xs text-[#6E5C50]">
-                    판매자 검토 대기 중 (견적 답변 기능 다음 단계 예정)
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedQuoteId(quote.quoteId)}
-                    className="min-h-[44px] inline-flex items-center gap-1.5 text-sm font-medium text-[#6E5C50] hover:text-[#493B32] transition-colors cursor-pointer px-2 shrink-0"
-                  >
-                    <span>요청 상세 보기</span>
-                    <ChevronRight
-                      className="h-4 w-4 text-[#B58C6A]"
-                      aria-hidden="true"
-                    />
-                  </button>
+                    {awaitingPayment && quote.acceptedQuote && (
+                      <Button
+                        variant="primary"
+                        size="md"
+                        onClick={() => handleOpenQuotePayment(quote.quoteId)}
+                      >
+                        <CreditCard className="h-4 w-4" aria-hidden="true" />
+                        <span>
+                          모의 결제하기 (
+                          {formatPriceKRW(quote.acceptedQuote.finalPrice)})
+                        </span>
+                      </Button>
+                    )}
+
+                    {reservationConfirmed && quote.payment && (
+                      <div className="min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#EEF4EC] border border-[#BBD0B5] px-4 py-2 text-xs sm:text-sm font-semibold text-[#355E3B]">
+                        <CheckCircle2
+                          className="h-4 w-4 shrink-0"
+                          aria-hidden="true"
+                        />
+                        <span>예약 확정 ({quote.payment.paymentMethod})</span>
+                      </div>
+                    )}
+
+                    {canRespond && (
+                      <Button
+                        variant="secondary"
+                        size="md"
+                        onClick={() => setSelectedQuoteId(quote.quoteId)}
+                      >
+                        <span>견적 수락 · 수정 요청</span>
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </Card>
         )}
       </div>
@@ -411,6 +713,16 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
         quote={selectedQuote}
         isMissingQuote={selectedQuoteId !== null && !selectedQuote}
         onClose={() => setSelectedQuoteId(null)}
+        onAcceptQuote={onAcceptQuote}
+        onRequestRevision={onRequestQuoteRevision}
+        onOpenPayment={handleOpenQuotePayment}
+      />
+
+      <QuoteMockPaymentModal
+        quote={paymentQuote}
+        isMissingQuote={paymentQuoteId !== null && !paymentQuote}
+        onClose={() => setPaymentQuoteId(null)}
+        onConfirmPayment={onCompleteQuotePayment}
       />
     </div>
   );

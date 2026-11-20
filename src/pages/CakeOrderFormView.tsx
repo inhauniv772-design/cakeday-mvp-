@@ -842,7 +842,7 @@ export const CakeOrderFormView: React.FC<CakeOrderFormViewProps> = ({
           <div className="flex items-start gap-2.5 rounded-2xl bg-[#E9DFD0]/45 p-4 text-xs sm:text-sm text-[#6E5C50]">
             <Info className="h-4 w-4 text-[#8F6849] mt-0.5 shrink-0" aria-hidden="true" />
             <p className="leading-relaxed">
-              주문 신청을 완료하면 상태가 &lsquo;주문 신청 완료 · 판매자 확인 대기&rsquo;로 저장되며, 이번 단계에서는 실제 결제가 진행되지 않습니다.
+              주문 신청을 완료하면 상태가 &lsquo;판매자 확인 대기&rsquo;로 저장됩니다. 판매자가 주문을 승인한 뒤 마이페이지에서 시연용 모의 결제를 완료하면 예약이 최종 확정됩니다.
             </p>
           </div>
 
