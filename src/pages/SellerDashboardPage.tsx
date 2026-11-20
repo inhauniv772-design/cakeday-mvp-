@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   ChevronRight,
   ClipboardList,
+  ImagePlus,
   Info,
   LogOut,
   Store,
@@ -10,6 +11,7 @@ import {
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { SellerOrderDetailModal } from '../components/SellerOrderDetailModal';
+import { SellerQuoteDetailModal } from '../components/SellerQuoteDetailModal';
 import { getMockCakeShops, formatPriceKRW } from '../data/mockShops';
 import {
   approveOrderAsSeller,
@@ -20,9 +22,11 @@ import {
   loadOrdersForSellerShops,
   rejectOrderAsSeller,
 } from '../services/orderStorage';
+import { loadQuoteRequestsForSellerShops } from '../services/quoteRequestStorage';
 import type {
   AppPage,
   CakeOrder,
+  CustomQuoteRequest,
   SellerOrderFilter,
   UserAccount,
   UserRole,
@@ -58,16 +62,23 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
     return getMockCakeShops().filter((shop) => ownedSet.has(shop.shopId));
   }, [ownedShopIds]);
 
+  const [sellerTab, setSellerTab] = useState<'orders' | 'quotes'>('orders');
   const [orders, setOrders] = useState<CakeOrder[]>(() =>
     loadOrdersForSellerShops(ownedShopIds)
   );
+  const [quoteRequests, setQuoteRequests] = useState<CustomQuoteRequest[]>(() =>
+    loadQuoteRequestsForSellerShops(ownedShopIds)
+  );
   const [statusFilter, setStatusFilter] = useState<SellerOrderFilter>('all');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [decisionNotice, setDecisionNotice] = useState<string | null>(null);
 
   useEffect(() => {
     setOrders(loadOrdersForSellerShops(ownedShopIds));
+    setQuoteRequests(loadQuoteRequestsForSellerShops(ownedShopIds));
     setSelectedOrderId(null);
+    setSelectedQuoteId(null);
     setDecisionNotice(null);
   }, [user.userId, ownedShopIds]);
 
@@ -79,6 +90,8 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
 
   const selectedOrder =
     orders.find((order) => order.orderId === selectedOrderId) ?? null;
+  const selectedQuote =
+    quoteRequests.find((quote) => quote.quoteId === selectedQuoteId) ?? null;
 
   const isDualRole = canSwitchModes(user);
 
@@ -161,13 +174,63 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
             </div>
           </div>
           <span className="text-xs text-[#6E5C50] tabular-nums shrink-0">
-            접수 {counts.all}건 · 결제 완료 {counts.paid}건
+            일반 주문 {counts.all}건 · 맞춤 견적 {quoteRequests.length}건
           </span>
         </div>
       </Card>
 
+      {/* Seller Sub-Section Switcher: 일반 주문 관리 / 맞춤 디자인 견적 요청 */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div
+          role="tablist"
+          aria-label="판매자 메뉴"
+          className="inline-flex items-center gap-1 rounded-2xl bg-[#E9DFD0]/70 p-1 self-start"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={sellerTab === 'orders'}
+            onClick={() => setSellerTab('orders')}
+            className={cn(
+              'min-h-[44px] px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-2 transition-all duration-150 cursor-pointer',
+              sellerTab === 'orders'
+                ? 'bg-[#FFFFFF] text-[#493B32] shadow-sm shadow-[#493B32]/5 font-semibold'
+                : 'text-[#6E5C50] hover:text-[#493B32]'
+            )}
+          >
+            <ClipboardList className="h-4 w-4" aria-hidden="true" />
+            <span>일반 주문 관리</span>
+            <span className="text-xs text-[#8F6849] tabular-nums">
+              {counts.all}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={sellerTab === 'quotes'}
+            onClick={() => {
+              setQuoteRequests(loadQuoteRequestsForSellerShops(ownedShopIds));
+              setSellerTab('quotes');
+            }}
+            className={cn(
+              'min-h-[44px] px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-2 transition-all duration-150 cursor-pointer',
+              sellerTab === 'quotes'
+                ? 'bg-[#FFFFFF] text-[#493B32] shadow-sm shadow-[#493B32]/5 font-semibold'
+                : 'text-[#6E5C50] hover:text-[#493B32]'
+            )}
+          >
+            <ImagePlus className="h-4 w-4" aria-hidden="true" />
+            <span>맞춤 디자인 견적 요청</span>
+            <span className="text-xs text-[#8F6849] tabular-nums">
+              {quoteRequests.length}
+            </span>
+          </button>
+        </div>
+      </div>
+
       {/* Decision Feedback Toast / Banner */}
-      {decisionNotice && (
+      {sellerTab === 'orders' && decisionNotice && (
         <div
           role="status"
           className="flex items-center justify-between gap-3 rounded-2xl border border-[#B58C6A]/50 bg-[#FFFFFF] px-4 py-3 text-xs sm:text-sm text-[#493B32]"
@@ -182,6 +245,9 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
           </button>
         </div>
       )}
+
+      {sellerTab === 'orders' && (
+        <>
 
       {/* Status Filter Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -348,6 +414,96 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
         </Card>
       )}
 
+        </>
+      )}
+
+      {sellerTab === 'quotes' && (
+        <div className="space-y-4">
+          {quoteRequests.length === 0 ? (
+            <Card className="py-12 text-center space-y-3">
+              <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E9DFD0] text-[#8F6849]">
+                <ImagePlus className="h-6 w-6" aria-hidden="true" />
+              </div>
+              <h2 className="text-lg font-bold text-[#493B32]">
+                아직 매장에 접수된 맞춤 디자인 견적 요청이 없습니다.
+              </h2>
+              <p className="text-sm text-[#6E5C50] max-w-md mx-auto leading-relaxed">
+                소비자가 운영 중인 매장에 디자인 참고 사진과 제작 사양을 담아 견적을 요청하면 이곳에 표시됩니다.
+              </p>
+            </Card>
+          ) : (
+            <Card className="p-0 sm:p-0 divide-y divide-[#E9DFD0] overflow-hidden">
+              {quoteRequests.map((quote) => (
+                <button
+                  key={quote.quoteId}
+                  type="button"
+                  onClick={() => setSelectedQuoteId(quote.quoteId)}
+                  className="w-full p-5 sm:p-6 text-left flex items-center justify-between gap-4 hover:bg-[#FAF8F3] transition-colors cursor-pointer"
+                >
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-block rounded-lg bg-[#E9DFD0] border border-[#D8C9B5] px-2.5 py-0.5 text-xs font-semibold text-[#493B32]">
+                        {quote.status}
+                      </span>
+                      <span className="text-xs font-medium text-[#6E5C50] tabular-nums">
+                        요청번호 {quote.quoteId}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+                      <h2 className="text-base sm:text-lg font-bold text-[#493B32] truncate">
+                        {quote.cakeSize} · {quote.cakeShape} · {quote.cakeFlavor}
+                      </h2>
+                      <span className="text-xs font-medium text-[#8F6849] shrink-0">
+                        {quote.shopName}
+                      </span>
+                    </div>
+
+                    <dl className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 sm:gap-4 text-xs sm:text-sm text-[#6E5C50]">
+                      <div className="truncate">
+                        <dt className="inline text-[#8F6849] font-medium">
+                          요청자:{' '}
+                        </dt>
+                        <dd className="inline text-[#493B32] font-medium">
+                          {quote.customerName} ({quote.customerEmail})
+                        </dd>
+                      </div>
+                      <div className="tabular-nums">
+                        <dt className="inline text-[#8F6849] font-medium">
+                          희망 수령:{' '}
+                        </dt>
+                        <dd className="inline text-[#493B32] font-semibold">
+                          {formatKoreanShortDate(quote.desiredPickupDate)} ·{' '}
+                          {quote.desiredPickupTime}
+                        </dd>
+                      </div>
+                      <div className="tabular-nums">
+                        <dt className="inline text-[#8F6849] font-medium">
+                          접수일:{' '}
+                        </dt>
+                        <dd className="inline">
+                          {formatOrderTimestampDate(quote.createdAt)}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    <p className="text-xs font-medium text-[#8F6849] tabular-nums">
+                      첨부 참고 사진 {quote.images.length}장 · 레터링 &ldquo;
+                      {quote.letteringText}&rdquo;
+                    </p>
+                  </div>
+
+                  <ChevronRight
+                    className="h-5 w-5 text-[#B58C6A] shrink-0"
+                    aria-hidden="true"
+                  />
+                </button>
+              ))}
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* Demo Isolation Notice */}
       <div className="flex items-start gap-2.5 rounded-2xl bg-[#E9DFD0]/45 p-4 text-xs text-[#6E5C50]">
         <Info
@@ -355,7 +511,7 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
           aria-hidden="true"
         />
         <p className="leading-relaxed">
-          판매자 모드에서는 현재 계정이 운영하는 매장({ownedShops.map((s) => s.shopName).join(', ') || '없음'})에 접수된 주문만 조회 및 승인·거절할 수 있습니다. 주문 내역과 처리 상태는 브라우저 로컬 저장소(localStorage) 데모 데이터로 유지됩니다.
+          판매자 모드에서는 현재 계정이 운영하는 매장({ownedShops.map((s) => s.shopName).join(', ') || '없음'})에 접수된 일반 주문과 맞춤 디자인 견적 요청만 조회할 수 있습니다. 견적 금액 작성 및 답변 전송 기능은 다음 단계에서 추가될 예정입니다.
         </p>
       </div>
 
@@ -367,17 +523,53 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
         <div
           className={cn(
             'grid h-full max-w-md mx-auto',
-            isDualRole ? 'grid-cols-3' : 'grid-cols-2'
+            isDualRole ? 'grid-cols-4' : 'grid-cols-3'
           )}
         >
           <button
             type="button"
-            aria-current="page"
-            className="min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[#8F6849] cursor-pointer px-1"
+            aria-current={sellerTab === 'orders' ? 'page' : undefined}
+            onClick={() => {
+              setSellerTab('orders');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={cn(
+              'min-h-[44px] flex flex-col items-center justify-center gap-0.5 cursor-pointer px-1',
+              sellerTab === 'orders' ? 'text-[#8F6849]' : 'text-[#6E5C50]'
+            )}
           >
             <ClipboardList className="h-5 w-5" aria-hidden="true" />
-            <span className="text-[11px] font-bold tracking-tight whitespace-nowrap">
+            <span
+              className={cn(
+                'text-[11px] tracking-tight whitespace-nowrap',
+                sellerTab === 'orders' ? 'font-bold' : 'font-medium'
+              )}
+            >
               주문 관리
+            </span>
+          </button>
+
+          <button
+            type="button"
+            aria-current={sellerTab === 'quotes' ? 'page' : undefined}
+            onClick={() => {
+              setQuoteRequests(loadQuoteRequestsForSellerShops(ownedShopIds));
+              setSellerTab('quotes');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={cn(
+              'min-h-[44px] flex flex-col items-center justify-center gap-0.5 cursor-pointer px-1',
+              sellerTab === 'quotes' ? 'text-[#8F6849]' : 'text-[#6E5C50]'
+            )}
+          >
+            <ImagePlus className="h-5 w-5" aria-hidden="true" />
+            <span
+              className={cn(
+                'text-[11px] tracking-tight whitespace-nowrap',
+                sellerTab === 'quotes' ? 'font-bold' : 'font-medium'
+              )}
+            >
+              견적 요청
             </span>
           </button>
 
@@ -414,6 +606,13 @@ export const SellerDashboardPage: React.FC<SellerDashboardPageProps> = ({
         onClose={() => setSelectedOrderId(null)}
         onApprove={handleApproveOrder}
         onReject={handleRejectOrder}
+      />
+
+      {/* Seller Custom Quote Request Detail Modal (Read-only in Stage 9) */}
+      <SellerQuoteDetailModal
+        quote={selectedQuote}
+        isMissingQuote={selectedQuoteId !== null && !selectedQuote}
+        onClose={() => setSelectedQuoteId(null)}
       />
     </div>
   );

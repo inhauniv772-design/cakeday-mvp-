@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Calendar,
   Clock,
+  ImagePlus,
   MapPin,
   Phone,
 } from 'lucide-react';
@@ -20,6 +21,7 @@ interface ShopDetailViewProps {
   pickupDate: string;
   onBackToSearch: () => void;
   onStartOrder: () => void;
+  onRequestCustomQuote: () => void;
 }
 
 export const ShopDetailView: React.FC<ShopDetailViewProps> = ({
@@ -27,6 +29,7 @@ export const ShopDetailView: React.FC<ShopDetailViewProps> = ({
   pickupDate,
   onBackToSearch,
   onStartOrder,
+  onRequestCustomQuote,
 }) => {
   const todayStr = useMemo(() => getTodayString(), []);
   const evaluation = useMemo(
@@ -203,6 +206,21 @@ export const ShopDetailView: React.FC<ShopDetailViewProps> = ({
                   선택하신 날짜에는 픽업이 불가합니다. 검색 화면에서 다른 날짜를 선택해 주세요.
                 </p>
               )}
+
+              <div className="pt-2 border-t border-[#E9DFD0]/80 space-y-1.5">
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  onClick={onRequestCustomQuote}
+                >
+                  <ImagePlus className="h-4 w-4" aria-hidden="true" />
+                  <span>맞춤 디자인 견적 요청</span>
+                </Button>
+                <p className="text-xs text-[#6E5C50] text-center leading-relaxed">
+                  원하는 케이크 디자인 참고 사진과 제작 요청 사항을 보내 견적을 문의할 수 있습니다.
+                </p>
+              </div>
             </div>
           </Card>
         </div>

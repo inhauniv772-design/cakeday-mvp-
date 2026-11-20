@@ -14,6 +14,10 @@ import {
   createUserOrder,
   loadUserOrders,
 } from '../services/orderStorage';
+import {
+  createUserQuoteRequest,
+  loadUserQuoteRequests,
+} from '../services/quoteRequestStorage';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import type {
@@ -25,7 +29,10 @@ import type {
   CakeOrderOptions,
   CakeShop,
   ConsumerTab,
+  CustomQuoteRequest,
+  CustomQuoteRequestFormInput,
   PaymentMethod,
+  QuoteAttachmentImage,
   ShopOrderFilter,
   UserAccount,
   UserRole,
@@ -37,6 +44,7 @@ import { ConsumerCakeSearchView } from './ConsumerCakeSearchView';
 import { ConsumerCalendarView } from './ConsumerCalendarView';
 import { ConsumerHomeView } from './ConsumerHomeView';
 import { ConsumerMyPageView } from './ConsumerMyPageView';
+import { CustomDesignQuoteFormView } from './CustomDesignQuoteFormView';
 import { ShopDetailView } from './ShopDetailView';
 
 interface ConsumerDashboardPageProps {
@@ -70,6 +78,9 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
   const [orders, setOrders] = useState<CakeOrder[]>(() =>
     loadUserOrders(user.userId)
   );
+  const [quoteRequests, setQuoteRequests] = useState<CustomQuoteRequest[]>(() =>
+    loadUserQuoteRequests(user.userId)
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAnniversary, setEditingAnniversary] =
     useState<Anniversary | null>(null);
@@ -77,18 +88,25 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
     getTodayString()
   );
 
-  // Shop search, detail & ordering state
+  // Shop search, detail, ordering & custom quote request state
   const mockShops = useMemo(() => getMockCakeShops(), []);
   const [pickupDate, setPickupDate] = useState<string>(() => getTodayString());
   const [selectedSido, setSelectedSido] = useState<string>('all');
   const [selectedSigungu, setSelectedSigungu] = useState<string>('all');
   const [orderFilter, setOrderFilter] = useState<ShopOrderFilter>('all');
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
-  const [isOrdering, setIsOrdering] = useState(false);
+  const [shopViewMode, setShopViewMode] = useState<'detail' | 'order' | 'quote'>(
+    'detail'
+  );
   const [orderDraft, setOrderDraft] = useState<{
     shopId: string;
     step: 1 | 2 | 3;
     form: CakeOrderFormInput;
+  } | null>(null);
+  const [quoteDraft, setQuoteDraft] = useState<{
+    shopId: string;
+    step: 1 | 2 | 3;
+    form: CustomQuoteRequestFormInput;
   } | null>(null);
 
   const selectedShop = useMemo(
@@ -99,20 +117,23 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
   useEffect(() => {
     setAnniversaries(loadUserAnniversaries(user.userId));
     setOrders(loadUserOrders(user.userId));
+    setQuoteRequests(loadUserQuoteRequests(user.userId));
     setIsModalOpen(false);
     setEditingAnniversary(null);
     setSelectedShopId(null);
-    setIsOrdering(false);
+    setShopViewMode('detail');
     setOrderDraft(null);
+    setQuoteDraft(null);
   }, [user.userId]);
 
   const handleTabSelect = (tab: ConsumerTab) => {
     if (tab === 'search' && activeTab === 'search') {
       setSelectedShopId(null);
-      setIsOrdering(false);
+      setShopViewMode('detail');
     }
     if (tab === 'mypage') {
       setOrders(loadUserOrders(user.userId));
+      setQuoteRequests(loadUserQuoteRequests(user.userId));
     }
     setActiveTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -194,6 +215,33 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
     return createdOrder;
   };
 
+  const handleSubmitQuoteRequest = (payload: {
+    shop: CakeShop;
+    images: QuoteAttachmentImage[];
+    desiredPickupDate: string;
+    desiredPickupTime: string;
+    cakeSize: string;
+    cakeShape: string;
+    cakeFlavor: string;
+    cakeColor: string;
+    letteringText: string;
+    designDescription: string;
+    additionalRequests: string;
+  }) => {
+    const result = createUserQuoteRequest({
+      userId: user.userId,
+      customerName: user.name,
+      customerEmail: user.email,
+      ...payload,
+    });
+    if (!result.ok) {
+      return { ok: false as const, error: result.error };
+    }
+    setQuoteRequests(result.quotes);
+    setQuoteDraft(null);
+    return { ok: true as const, createdQuote: result.createdQuote };
+  };
+
   const handleCompletePayment = (
     orderId: string,
     paymentMethod: PaymentMethod
@@ -252,6 +300,10 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
           <strong className="font-semibold text-[#493B32] tabular-nums">
             {orders.length}
           </strong>
+          건 · 견적{' '}
+          <strong className="font-semibold text-[#493B32] tabular-nums">
+            {quoteRequests.length}
+          </strong>
           건
         </span>
       </div>
@@ -278,7 +330,7 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
 
       {activeTab === 'search' &&
         (selectedShop ? (
-          isOrdering ? (
+          shopViewMode === 'order' ? (
             <CakeOrderFormView
               shop={selectedShop}
               initialPickupDate={pickupDate}
@@ -300,20 +352,57 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
                 })
               }
               onBackToDetail={() => {
-                setIsOrdering(false);
+                setShopViewMode('detail');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               onBackToSearch={() => {
-                setIsOrdering(false);
+                setShopViewMode('detail');
                 setSelectedShopId(null);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               onGoToMyPage={() => {
-                setIsOrdering(false);
+                setShopViewMode('detail');
                 setSelectedShopId(null);
                 handleTabSelect('mypage');
               }}
               onSubmitOrder={handleSubmitOrder}
+            />
+          ) : shopViewMode === 'quote' ? (
+            <CustomDesignQuoteFormView
+              shop={selectedShop}
+              initialPickupDate={pickupDate}
+              draftStep={
+                quoteDraft?.shopId === selectedShop.shopId
+                  ? quoteDraft.step
+                  : undefined
+              }
+              draftForm={
+                quoteDraft?.shopId === selectedShop.shopId
+                  ? quoteDraft.form
+                  : undefined
+              }
+              onDraftChange={(nextStep, nextForm) =>
+                setQuoteDraft({
+                  shopId: selectedShop.shopId,
+                  step: nextStep,
+                  form: nextForm,
+                })
+              }
+              onBackToDetail={() => {
+                setShopViewMode('detail');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onBackToSearch={() => {
+                setShopViewMode('detail');
+                setSelectedShopId(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onGoToMyPage={() => {
+                setShopViewMode('detail');
+                setSelectedShopId(null);
+                handleTabSelect('mypage');
+              }}
+              onSubmitQuote={handleSubmitQuoteRequest}
             />
           ) : (
             <ShopDetailView
@@ -324,7 +413,11 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               onStartOrder={() => {
-                setIsOrdering(true);
+                setShopViewMode('order');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onRequestCustomQuote={() => {
+                setShopViewMode('quote');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             />
@@ -343,7 +436,7 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
                 size="md"
                 onClick={() => {
                   setSelectedShopId(null);
-                  setIsOrdering(false);
+                  setShopViewMode('detail');
                 }}
               >
                 매장 검색으로 돌아가기
@@ -366,8 +459,19 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
               if (orderDraft && orderDraft.shopId !== shopId) {
                 setOrderDraft(null);
               }
+              if (quoteDraft && quoteDraft.shopId !== shopId) {
+                setQuoteDraft(null);
+              }
               setSelectedShopId(shopId);
-              setIsOrdering(false);
+              setShopViewMode('detail');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onRequestCustomQuote={(shopId) => {
+              if (quoteDraft && quoteDraft.shopId !== shopId) {
+                setQuoteDraft(null);
+              }
+              setSelectedShopId(shopId);
+              setShopViewMode('quote');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
           />
@@ -378,6 +482,7 @@ export const ConsumerDashboardPage: React.FC<ConsumerDashboardPageProps> = ({
           user={user}
           anniversaryCount={anniversaries.length}
           orders={orders}
+          quoteRequests={quoteRequests}
           onNavigate={onNavigate}
           onGoToSearch={() => handleTabSelect('search')}
           onSwitchMode={onSwitchMode}

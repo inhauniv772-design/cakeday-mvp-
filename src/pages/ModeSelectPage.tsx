@@ -37,7 +37,7 @@ export const ModeSelectPage: React.FC<ModeSelectPageProps> = ({
     const summary = resetAllDemoTestData();
     setIsConfirmingReset(false);
     setResetMessage(
-      `시연용 데모 데이터(기념일 ${summary.anniversariesCount}건 · 주문 ${summary.ordersCount}건)를 초기 상태로 복원했습니다. 직접 가입한 계정의 데이터는 그대로 유지됩니다.`
+      `시연용 데모 데이터(기념일 ${summary.anniversariesCount}건 · 주문 ${summary.ordersCount}건 · 견적 요청 ${summary.quoteRequestsCount}건)를 초기 상태로 복원했습니다. 직접 가입한 계정의 데이터는 그대로 유지됩니다.`
     );
   };
 

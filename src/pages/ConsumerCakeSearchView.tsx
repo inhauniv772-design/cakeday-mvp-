@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Calendar, ChevronDown, ChevronUp, Info, MapPin, RotateCcw } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronUp, ImagePlus, Info, MapPin, RotateCcw } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { DatePickerCalendar } from '../components/DatePickerCalendar';
@@ -30,6 +30,7 @@ interface ConsumerCakeSearchViewProps {
   onChangeOrderFilter: (filter: ShopOrderFilter) => void;
   onResetFilters: () => void;
   onSelectShop: (shopId: string) => void;
+  onRequestCustomQuote: (shopId: string) => void;
 }
 
 const ORDER_FILTER_TABS: Array<{ id: ShopOrderFilter; label: string }> = [
@@ -50,6 +51,7 @@ export const ConsumerCakeSearchView: React.FC<ConsumerCakeSearchViewProps> = ({
   onChangeOrderFilter,
   onResetFilters,
   onSelectShop,
+  onRequestCustomQuote,
 }) => {
   const todayStr = useMemo(() => getTodayString(), []);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -249,70 +251,86 @@ export const ConsumerCakeSearchView: React.FC<ConsumerCakeSearchViewProps> = ({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {searchResults.map(({ shop, evaluation }) => (
-            <button
+            <article
               key={shop.shopId}
-              type="button"
-              onClick={() => onSelectShop(shop.shopId)}
               className={cn(
-                'group text-left rounded-3xl bg-[#FFFFFF] border border-[#E9DFD0] overflow-hidden flex flex-col transition-all duration-150 hover:border-[#B58C6A] hover:-translate-y-0.5 cursor-pointer',
-                !evaluation.isPickupAvailable && 'opacity-80'
+                'group rounded-3xl bg-[#FFFFFF] border border-[#E9DFD0] overflow-hidden flex flex-col justify-between transition-all duration-150 hover:border-[#B58C6A]',
+                !evaluation.isPickupAvailable && 'opacity-85'
               )}
             >
-              <div className="aspect-[4/3] w-full overflow-hidden border-b border-[#E9DFD0]">
-                <SafeImage
-                  src={shop.representativeImage}
-                  alt={`${shop.shopName} - ${shop.representativeCakeName}`}
-                  containerClassName="h-full w-full rounded-none"
-                  className="transition-transform duration-300 group-hover:scale-[1.02]"
-                  fallbackTitle={shop.shopName}
-                />
-              </div>
-
-              <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between gap-4">
-                <div>
-                  {/* Single Availability Badge */}
-                  <span
-                    className={cn(
-                      'inline-block rounded-full px-3 py-1 text-xs font-semibold',
-                      evaluation.badgeType === 'sameDay'
-                        ? 'bg-[#8F6849] text-[#FFFFFF]'
-                        : evaluation.badgeType === 'reservation'
-                          ? 'bg-[#E9DFD0] text-[#493B32]'
-                          : 'bg-[#FAF8F3] text-[#6E5C50] border border-[#E9DFD0]'
-                    )}
-                  >
-                    {evaluation.badgeLabel}
-                  </span>
-
-                  <h2 className="mt-3 text-lg font-bold text-[#493B32]">
-                    {shop.shopName}
-                  </h2>
-
-                  <p className="mt-1 inline-flex items-center gap-1 text-xs sm:text-sm text-[#6E5C50]">
-                    <MapPin className="h-3.5 w-3.5 text-[#B58C6A] shrink-0" aria-hidden="true" />
-                    <span>
-                      {shop.region.sido} {shop.region.sigungu}
-                    </span>
-                  </p>
+              <button
+                type="button"
+                onClick={() => onSelectShop(shop.shopId)}
+                className="text-left flex-1 flex flex-col cursor-pointer"
+              >
+                <div className="aspect-[4/3] w-full overflow-hidden border-b border-[#E9DFD0]">
+                  <SafeImage
+                    src={shop.representativeImage}
+                    alt={`${shop.shopName} - ${shop.representativeCakeName}`}
+                    containerClassName="h-full w-full rounded-none"
+                    className="transition-transform duration-300 group-hover:scale-[1.02]"
+                    fallbackTitle={shop.shopName}
+                  />
                 </div>
 
-                <div className="pt-3 border-t border-[#E9DFD0] space-y-1.5">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-sm font-medium text-[#493B32] truncate">
-                      {shop.representativeCakeName}
+                <div className="p-5 sm:p-6 flex-1 w-full flex flex-col justify-between gap-4">
+                  <div>
+                    {/* Single Availability Badge */}
+                    <span
+                      className={cn(
+                        'inline-block rounded-full px-3 py-1 text-xs font-semibold',
+                        evaluation.badgeType === 'sameDay'
+                          ? 'bg-[#8F6849] text-[#FFFFFF]'
+                          : evaluation.badgeType === 'reservation'
+                            ? 'bg-[#E9DFD0] text-[#493B32]'
+                            : 'bg-[#FAF8F3] text-[#6E5C50] border border-[#E9DFD0]'
+                      )}
+                    >
+                      {evaluation.badgeLabel}
                     </span>
-                    <span className="text-base font-bold text-[#8F6849] tabular-nums shrink-0">
-                      {formatPriceKRW(shop.representativeCakePrice)}
-                    </span>
+
+                    <h2 className="mt-3 text-lg font-bold text-[#493B32]">
+                      {shop.shopName}
+                    </h2>
+
+                    <p className="mt-1 inline-flex items-center gap-1 text-xs sm:text-sm text-[#6E5C50]">
+                      <MapPin className="h-3.5 w-3.5 text-[#B58C6A] shrink-0" aria-hidden="true" />
+                      <span>
+                        {shop.region.sido} {shop.region.sigungu}
+                      </span>
+                    </p>
                   </div>
-                  <p className="text-xs text-[#6E5C50]">
-                    {evaluation.isPickupAvailable
-                      ? `${formatKoreanShortDate(pickupDate)} 픽업 가능`
-                      : '선택한 날짜 픽업 불가'}
-                  </p>
+
+                  <div className="pt-3 border-t border-[#E9DFD0] space-y-1.5">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-sm font-medium text-[#493B32] truncate">
+                        {shop.representativeCakeName}
+                      </span>
+                      <span className="text-base font-bold text-[#8F6849] tabular-nums shrink-0">
+                        {formatPriceKRW(shop.representativeCakePrice)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#6E5C50]">
+                      {evaluation.isPickupAvailable
+                        ? `${formatKoreanShortDate(pickupDate)} 픽업 가능`
+                        : '선택한 날짜 픽업 불가'}
+                    </p>
+                  </div>
                 </div>
+              </button>
+
+              <div className="px-5 pb-5 sm:px-6 sm:pb-6 pt-0">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  fullWidth
+                  onClick={() => onRequestCustomQuote(shop.shopId)}
+                >
+                  <ImagePlus className="h-4 w-4" aria-hidden="true" />
+                  <span>맞춤 디자인 견적 요청</span>
+                </Button>
               </div>
-            </button>
+            </article>
           ))}
         </div>
       )}

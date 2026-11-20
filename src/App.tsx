@@ -7,6 +7,7 @@ import { ModeWorkspacePage } from './pages/ModeWorkspacePage';
 import { SignupPage } from './pages/SignupPage';
 import { DEMO_ACCOUNT_PRESETS } from './data/cakedayData';
 import { ensureDemoOrdersSeeded } from './services/orderStorage';
+import { ensureDemoQuoteRequestsSeeded } from './services/quoteRequestStorage';
 import type { AppPage, UserAccount, UserRole } from './types';
 import { hasRole } from './utils/auth';
 
@@ -88,6 +89,7 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     ensureDemoOrdersSeeded();
+    ensureDemoQuoteRequestsSeeded();
   }, []);
 
   useEffect(() => {

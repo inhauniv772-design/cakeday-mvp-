@@ -161,10 +161,10 @@ export const FUTURE_EXPANSION_ITEMS: Array<{
   description: string;
 }> = [
   {
-    category: '맞춤 디자인 소통',
-    title: '소비자 디자인 참고 사진 첨부',
+    category: '맞춤 견적 고도화',
+    title: '판매자 견적 금액 작성 및 소비자 수락·결제 연결',
     description:
-      '주문 신청 시 소비자가 직접 스케치나 참고 이미지를 첨부할 수 있는 기능',
+      '판매자가 요청된 디자인 사진과 사양을 검토해 견적 금액을 제시하고, 소비자가 수락 후 결제까지 이어지는 기능',
   },
   {
     category: '맞춤 디자인 소통',
@@ -176,7 +176,7 @@ export const FUTURE_EXPANSION_ITEMS: Array<{
     category: '맞춤 디자인 소통',
     title: '소비자·판매자 간 추가 요청 및 답변',
     description:
-      '주문 접수 이후 세부 수정 요청과 매장 답변을 주고받는 1:1 커뮤니케이션 기능',
+      '견적 요청 접수 이후 세부 수정 요청과 매장 답변을 주고받는 1:1 커뮤니케이션 기능',
   },
   {
     category: 'AI 기능 확장',

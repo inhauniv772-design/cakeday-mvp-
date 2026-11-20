@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   ChevronRight,
   CreditCard,
+  ImagePlus,
   LogOut,
   Search,
   ShoppingBag,
@@ -12,6 +13,7 @@ import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { MockPaymentModal } from '../components/MockPaymentModal';
 import { OrderDetailModal } from '../components/OrderDetailModal';
+import { QuoteRequestDetailModal } from '../components/QuoteRequestDetailModal';
 import { formatPriceKRW } from '../data/mockShops';
 import {
   formatOrderTimestampDate,
@@ -21,6 +23,7 @@ import {
 import type {
   AppPage,
   CakeOrder,
+  CustomQuoteRequest,
   PaymentMethod,
   UserAccount,
   UserRole,
@@ -33,6 +36,7 @@ interface ConsumerMyPageViewProps {
   user: UserAccount;
   anniversaryCount: number;
   orders: CakeOrder[];
+  quoteRequests: CustomQuoteRequest[];
   onNavigate: (page: AppPage) => void;
   onGoToSearch: () => void;
   onSwitchMode: (mode: UserRole) => boolean;
@@ -47,6 +51,7 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
   user,
   anniversaryCount,
   orders,
+  quoteRequests,
   onNavigate,
   onGoToSearch,
   onSwitchMode,
@@ -56,11 +61,14 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
   const isDualRole = canSwitchModes(user);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [paymentOrderId, setPaymentOrderId] = useState<string | null>(null);
+  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
 
   const selectedOrder =
     orders.find((order) => order.orderId === selectedOrderId) ?? null;
   const paymentOrder =
     orders.find((order) => order.orderId === paymentOrderId) ?? null;
+  const selectedQuote =
+    quoteRequests.find((quote) => quote.quoteId === selectedQuoteId) ?? null;
 
   const handleOpenPayment = (orderId: string) => {
     setSelectedOrderId(null);
@@ -99,9 +107,10 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
               </dd>
             </div>
             <div className="rounded-2xl bg-[#FAF8F3] border border-[#E9DFD0] p-4">
-              <dt className="text-xs text-[#6E5C50]">기념일 · 주문 내역</dt>
+              <dt className="text-xs text-[#6E5C50]">기념일 · 주문 · 견적</dt>
               <dd className="mt-1 text-base font-bold text-[#493B32] tabular-nums">
-                기념일 {anniversaryCount}개 · 주문 {orders.length}건
+                기념일 {anniversaryCount} · 주문 {orders.length} · 견적{' '}
+                {quoteRequests.length}
               </dd>
             </div>
           </dl>
@@ -289,6 +298,101 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
         )}
       </div>
 
+      {/* Custom Design Quote Requests Section (Separate from Regular Orders) */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <ImagePlus className="h-5 w-5 text-[#B58C6A]" aria-hidden="true" />
+            <h2 className="text-xl font-bold text-[#493B32]">
+              맞춤 디자인 견적 요청
+            </h2>
+          </div>
+          <span className="text-xs sm:text-sm text-[#6E5C50] tabular-nums">
+            총 {quoteRequests.length}건
+          </span>
+        </div>
+
+        {quoteRequests.length === 0 ? (
+          <Card tone="beige" className="py-10 text-center space-y-3">
+            <p className="text-base font-semibold text-[#493B32]">
+              아직 보낸 맞춤 디자인 견적 요청이 없어요.
+            </p>
+            <p className="text-sm text-[#6E5C50]">
+              케이크 찾기 화면이나 매장 상세 화면에서 &lsquo;맞춤 디자인 견적 요청&rsquo;을 눌러 참고 사진과 함께 문의해 보세요.
+            </p>
+            <div className="pt-2">
+              <Button variant="secondary" size="md" onClick={onGoToSearch}>
+                <Search className="h-4 w-4" aria-hidden="true" />
+                <span>매장 찾아보기</span>
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <Card className="p-0 sm:p-0 divide-y divide-[#E9DFD0] overflow-hidden">
+            {quoteRequests.map((quote) => (
+              <div
+                key={quote.quoteId}
+                className="p-5 sm:p-6 space-y-3.5 hover:bg-[#FAF8F3]/60 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-block rounded-lg bg-[#E9DFD0] border border-[#D8C9B5] px-2.5 py-0.5 text-xs font-semibold text-[#493B32]">
+                        {quote.status}
+                      </span>
+                      <span className="text-xs text-[#6E5C50] tabular-nums">
+                        요청일 {formatOrderTimestampDate(quote.createdAt)}
+                      </span>
+                    </div>
+
+                    <h3 className="text-base sm:text-lg font-bold text-[#493B32] truncate">
+                      {quote.shopName}
+                    </h3>
+
+                    <p className="text-xs sm:text-sm text-[#8F6849] font-medium tabular-nums">
+                      희망 수령일: {formatKoreanShortDate(quote.desiredPickupDate)} ·{' '}
+                      {quote.desiredPickupTime} · 첨부 사진 {quote.images.length}장
+                    </p>
+
+                    <p className="text-xs sm:text-sm text-[#6E5C50] line-clamp-2 leading-relaxed">
+                      {quote.cakeSize} · {quote.cakeShape} · {quote.cakeFlavor} · &ldquo;
+                      {quote.letteringText}&rdquo;
+                    </p>
+                  </div>
+
+                  {quote.images[0] && (
+                    <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl border border-[#E9DFD0] bg-[#FAF8F3] overflow-hidden shrink-0">
+                      <img
+                        src={quote.images[0].dataUrl}
+                        alt={`${quote.shopName} 견적 참고 이미지`}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-[#E9DFD0]/70 flex items-center justify-between gap-3">
+                  <span className="text-xs text-[#6E5C50]">
+                    판매자 검토 대기 중 (견적 답변 기능 다음 단계 예정)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedQuoteId(quote.quoteId)}
+                    className="min-h-[44px] inline-flex items-center gap-1.5 text-sm font-medium text-[#6E5C50] hover:text-[#493B32] transition-colors cursor-pointer px-2 shrink-0"
+                  >
+                    <span>요청 상세 보기</span>
+                    <ChevronRight
+                      className="h-4 w-4 text-[#B58C6A]"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </Card>
+        )}
+      </div>
+
       <OrderDetailModal
         order={selectedOrder}
         isMissingOrder={selectedOrderId !== null && !selectedOrder}
@@ -301,6 +405,12 @@ export const ConsumerMyPageView: React.FC<ConsumerMyPageViewProps> = ({
         isMissingOrder={paymentOrderId !== null && !paymentOrder}
         onClose={() => setPaymentOrderId(null)}
         onConfirmPayment={onCompletePayment}
+      />
+
+      <QuoteRequestDetailModal
+        quote={selectedQuote}
+        isMissingQuote={selectedQuoteId !== null && !selectedQuote}
+        onClose={() => setSelectedQuoteId(null)}
       />
     </div>
   );

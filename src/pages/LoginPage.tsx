@@ -34,7 +34,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     const summary = resetAllDemoTestData();
     setIsConfirmingReset(false);
     setResetMessage(
-      `시연용 테스트 데이터를 초기 상태로 되돌렸습니다. (기념일 ${summary.anniversariesCount}건 · 주문 ${summary.ordersCount}건 / 직접 가입한 계정 데이터는 유지됩니다)`
+      `시연용 테스트 데이터를 초기 상태로 되돌렸습니다. (기념일 ${summary.anniversariesCount}건 · 주문 ${summary.ordersCount}건 · 견적 요청 ${summary.quoteRequestsCount}건 / 직접 가입한 계정 데이터는 유지됩니다)`
     );
   };
 

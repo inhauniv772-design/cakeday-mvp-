@@ -107,6 +107,53 @@ export interface CakeOrder {
   orderedAt: string;
 }
 
+export type QuoteRequestStatus = '판매자 검토 대기';
+
+export interface QuoteAttachmentImage {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  dataUrl: string;
+}
+
+export interface CustomQuoteRequestFormInput {
+  desiredPickupDate: string;
+  desiredPickupTime: string;
+  cakeSize: string;
+  cakeShape: string;
+  cakeFlavor: string;
+  cakeColorPreset: string;
+  cakeColorCustom: string;
+  letteringText: string;
+  designDescription: string;
+  additionalRequests: string;
+  images: QuoteAttachmentImage[];
+}
+
+export interface CustomQuoteRequest {
+  quoteId: string;
+  userId: string;
+  customerName: string;
+  customerEmail: string;
+  shopId: string;
+  shopName: string;
+  shopRegionText: string;
+  images: QuoteAttachmentImage[];
+  desiredPickupDate: string;
+  desiredPickupTime: string;
+  cakeSize: string;
+  cakeShape: string;
+  cakeFlavor: string;
+  cakeColor: string;
+  letteringText: string;
+  designDescription: string;
+  additionalRequests: string;
+  status: QuoteRequestStatus;
+  createdAt: string;
+  isDemoSeed?: boolean;
+}
+
 export type AnniversaryCategory =
   | 'birthday'
   | 'couple'
